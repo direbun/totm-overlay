@@ -39,7 +39,7 @@ Update the version/tag fields when you make a new release.
 
 Recommended tag:
 
-- `v2.0.0`
+- `v2.0.1`
 
 Upload:
 
