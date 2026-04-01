@@ -1,0 +1,3 @@
+Copyright (c) TOTM Overlay Contributors
+
+All rights reserved unless replaced with your chosen release license before publication.
