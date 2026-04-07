@@ -70,44 +70,7 @@ body.totm-active #hotbar{opacity:0!important;pointer-events:none!important}
 
 /* Layout */
 #totm-ui .totm-layout{position:relative;z-index:1;display:flex;width:100%;height:100%;flex-direction:column}
-#totm-weather-layer{position:absolute;inset:0;z-index:2;pointer-events:none;overflow:hidden;opacity:1}
-#totm-weather-layer.is-clear{display:none}
-#totm-weather-layer::before,#totm-weather-layer::after{content:"";position:absolute;inset:-20%;pointer-events:none}
-#totm-weather-layer[data-weather-effect="fog"]::before{background:
-radial-gradient(circle at 20% 30%,color-mix(in srgb,var(--totm-weather-color,#dfe6ee) 26%, transparent),transparent 28%),
-radial-gradient(circle at 70% 35%,color-mix(in srgb,var(--totm-weather-color,#dfe6ee) 24%, transparent),transparent 30%),
-radial-gradient(circle at 45% 75%,color-mix(in srgb,var(--totm-weather-color,#dfe6ee) 22%, transparent),transparent 26%);
-filter:blur(28px);opacity:.85;animation:totmFogDrift 18s linear infinite}
-#totm-weather-layer[data-weather-effect="rain"]::before,
-#totm-weather-layer[data-weather-effect="rainStorm"]::before{background:
-repeating-linear-gradient(116deg,transparent 0 12px,color-mix(in srgb,var(--totm-weather-color,#a0d8ef) 88%, white) 12px 14px,transparent 14px 28px),
-repeating-linear-gradient(114deg,transparent 0 22px,color-mix(in srgb,var(--totm-weather-color,#a0d8ef) 72%, white) 22px 24px,transparent 24px 44px);
-opacity:.7;animation:totmRainFall .45s linear infinite}
-#totm-weather-layer[data-weather-effect="rainStorm"]::after{background:linear-gradient(180deg,rgba(20,28,46,.32),rgba(5,8,18,.5));opacity:.9}
-#totm-weather-layer[data-weather-effect="snow"]::before,
-#totm-weather-layer[data-weather-effect="blizzard"]::before{background-image:
-radial-gradient(circle at 15% 25%,rgba(255,255,255,.95) 0 1px,transparent 1.7px),
-radial-gradient(circle at 70% 60%,rgba(255,255,255,.88) 0 1.2px,transparent 1.9px),
-radial-gradient(circle at 35% 80%,rgba(255,255,255,.82) 0 1px,transparent 1.8px),
-radial-gradient(circle at 85% 35%,rgba(255,255,255,.9) 0 1.2px,transparent 2px);
-background-size:22px 22px,28px 28px,18px 18px,34px 34px;opacity:.95;animation:totmSnowFall 2.8s linear infinite}
-#totm-weather-layer[data-weather-effect="blizzard"]::after{background-image:
-radial-gradient(circle at 20% 30%,rgba(255,255,255,.78) 0 1.6px,transparent 2.3px),
-radial-gradient(circle at 65% 45%,rgba(255,255,255,.72) 0 1.4px,transparent 2px),
-radial-gradient(circle at 40% 75%,rgba(255,255,255,.68) 0 1.2px,transparent 1.9px);
-background-size:14px 14px,18px 18px,24px 24px;opacity:.8;animation:totmSnowFallFast 1.35s linear infinite}
-#totm-weather-layer[data-weather-effect="snow"]::before{background-image:
-radial-gradient(circle at 15% 25%,rgba(255,255,255,.92) 0 1px,transparent 1.8px),
-radial-gradient(circle at 70% 60%,rgba(255,255,255,.86) 0 1.1px,transparent 1.8px),
-radial-gradient(circle at 35% 80%,rgba(255,255,255,.8) 0 1px,transparent 1.7px);
-background-size:30px 30px,24px 24px,36px 36px;opacity:.78;animation:totmSnowFall 4.8s linear infinite}
-#totm-weather-layer[data-weather-effect="leaves"]::before{background-image:radial-gradient(circle,color-mix(in srgb,var(--totm-weather-color,#e0c67a) 92%, transparent) 0 3px,transparent 4px);background-size:54px 54px;opacity:.45;animation:totmLeafDrift 9s linear infinite}
 .totm-weather-chip{max-width:180px;overflow:hidden;text-overflow:ellipsis}
-@keyframes totmRainFall{from{transform:translate3d(0,-12%,0)}to{transform:translate3d(-8%,14%,0)}}
-@keyframes totmSnowFall{from{transform:translate3d(0,-14%,0)}to{transform:translate3d(-6%,14%,0)}}
-@keyframes totmSnowFallFast{from{transform:translate3d(0,-18%,0)}to{transform:translate3d(-12%,18%,0)}}
-@keyframes totmFogDrift{from{transform:translateX(-2%)}to{transform:translateX(2%)}}
-@keyframes totmLeafDrift{0%{transform:translate3d(0,-10%,0)}100%{transform:translate3d(-8%,12%,0)}}
 .totm-main-row{display:flex;flex:1;min-height:0}
 #totm-hotbar-slot{flex:0 0 88px;display:flex;align-items:center;justify-content:center;padding:10px 14px;background:linear-gradient(180deg,rgba(7,7,12,.82),rgba(10,10,18,.94));border-top:1px solid rgba(255,255,255,.04);border-bottom:1px solid var(--totm-panel-border);position:relative;z-index:3}
 #totm-hotbar-slot::before{content:"Actions";position:absolute;left:12px;top:8px;font-size:9px;letter-spacing:1.6px;text-transform:uppercase;color:var(--totm-text-faint)}
@@ -125,7 +88,7 @@ background-size:30px 30px,24px 24px,36px 36px;opacity:.78;animation:totmSnowFall
 #totm-hotbar-slot.is-drop-ready::after{content:"Drop onto a numbered slot";position:absolute;right:14px;bottom:8px;font-size:10px;color:var(--totm-gold);pointer-events:none}
 
 /* Player panel */
-#totm-actor-panel{width:280px;min-width:280px;height:100%;display:flex;flex-direction:column;background:var(--totm-panel);border-right:1px solid var(--totm-panel-border);z-index:2;box-shadow:var(--totm-panel-shadow)}
+#totm-actor-panel{width:332px;min-width:332px;height:100%;display:flex;flex-direction:column;background:var(--totm-panel);border-right:1px solid var(--totm-panel-border);z-index:2;box-shadow:var(--totm-panel-shadow)}
 .totm-panel-header{display:flex;align-items:center;justify-content:space-between;padding:14px 12px 10px;border-bottom:1px solid var(--totm-panel-border);flex-shrink:0}
 .totm-panel-header h3{margin:0;font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--totm-gold)}
 .totm-header-btns{display:flex;gap:4px}
@@ -136,7 +99,7 @@ background-size:30px 30px,24px 24px,36px 36px;opacity:.78;animation:totmSnowFall
 #totm-actor-list::-webkit-scrollbar{width:3px}#totm-actor-list::-webkit-scrollbar-thumb{background:var(--totm-gold-dim);border-radius:2px}
 
 /* Actor card */
-.totm-actor-card{flex:1 1 0;min-height:80px;position:relative;display:flex;flex-direction:column;justify-content:flex-end;border-radius:6px;overflow:hidden;cursor:pointer;transition:all 200ms ease;user-select:none;border:2px solid transparent;animation:totm-slideIn 300ms ease both;box-shadow:0 8px 18px rgba(0,0,0,.18)}
+.totm-actor-card{flex:0 0 auto;min-height:0;position:relative;display:flex;flex-direction:column;justify-content:flex-end;border-radius:6px;overflow:hidden;cursor:pointer;transition:all 200ms ease;user-select:none;border:2px solid transparent;animation:totm-slideIn 300ms ease both;box-shadow:0 8px 18px rgba(0,0,0,.18)}
 @keyframes totm-slideIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
 .totm-card-bg{position:absolute;inset:0;background-size:150%;background-position:50% 20%;background-repeat:no-repeat;transition:transform 400ms ease;z-index:0}
 .totm-actor-card:hover .totm-card-bg{transform:scale(1.03)}
@@ -183,6 +146,31 @@ background-size:30px 30px,24px 24px,36px 36px;opacity:.78;animation:totmSnowFall
 .totm-actor-status-bar button{background:rgba(0,0,0,.4);border:1px solid rgba(255,255,255,.08);color:rgba(255,255,255,.5);cursor:pointer;padding:1px 5px;font-size:8px;border-radius:2px;font-family:inherit}
 .totm-actor-status-bar button:hover{color:#fff;background:rgba(0,0,0,.6)}
 .totm-actor-status-bar button.active-status{color:var(--totm-gold);border-color:var(--totm-gold-dim)}
+.totm-player-shell{display:grid;grid-template-columns:118px minmax(0,1fr);gap:12px;align-items:start;padding:10px 10px 10px;min-height:0;flex:1}
+.totm-player-portrait-col{display:grid;grid-template-rows:auto auto;gap:6px;min-width:0;align-content:start}
+.totm-player-portrait-frame{position:relative;width:100%;aspect-ratio:1 / 1;min-height:0;border-radius:8px;overflow:hidden;border:2px solid rgba(255,255,255,.08);background:linear-gradient(180deg,rgba(16,20,30,.92),rgba(8,10,18,.96));box-shadow:inset 0 0 0 1px rgba(255,255,255,.04)}
+.totm-player-portrait-frame .totm-card-bg{position:absolute;inset:0}
+.totm-player-portrait-frame .totm-card-overlay{position:absolute;inset:0;background:linear-gradient(180deg,rgba(255,255,255,.03),rgba(0,0,0,.08))}
+.totm-actor-card:hover .totm-player-portrait-frame .totm-card-bg{transform:scale(1.03)}
+.totm-player-stats-col{display:flex;min-width:0;border-radius:8px;background:linear-gradient(180deg,rgba(54,47,58,.96),rgba(42,36,47,.98));border:2px solid rgba(201,168,76,.18);box-shadow:inset 0 1px 0 rgba(255,255,255,.05)}
+.totm-actor-card{min-height:0;justify-content:flex-start;border-radius:8px;background:linear-gradient(180deg,rgba(15,18,28,.98),rgba(9,12,20,.98))}
+.totm-card-content{padding:8px 12px 6px;gap:6px;width:100%;justify-content:flex-start}
+.totm-actor-name{font-size:18px;font-weight:900;line-height:1;letter-spacing:.2px;text-shadow:0 1px 4px rgba(0,0,0,.55)}
+.totm-actor-subtitle{font-size:10px;color:rgba(255,255,255,.55);text-shadow:none}
+.totm-resource-bars{gap:6px;margin-top:4px}
+.totm-resource-row{display:grid;grid-template-columns:16px 28px minmax(0,1fr) auto;grid-template-rows:auto auto;align-items:center;column-gap:6px;row-gap:4px;min-height:28px}
+.totm-resource-icon{grid-column:1;grid-row:1;font-size:11px;width:16px;text-shadow:none}
+.totm-resource-lbl{grid-column:2;grid-row:1;font-size:10px;font-weight:900;letter-spacing:.8px;color:rgba(255,255,255,.88);text-shadow:none;min-width:20px}
+.totm-resource-value{grid-column:4;grid-row:1;font-size:12px;font-weight:900;min-width:48px;text-align:right;text-shadow:0 1px 3px rgba(0,0,0,.55)}
+.totm-resource-bar{grid-column:1 / -1;grid-row:2;height:14px;border-radius:5px;background:rgba(0,0,0,.5);border:1px solid rgba(255,255,255,.08);overflow:hidden;box-shadow:inset 0 2px 4px rgba(0,0,0,.25)}
+.totm-fp-badge{display:none}
+.totm-fp-panel{display:flex;align-items:center;justify-content:center;gap:6px;min-height:22px;padding:2px 8px;border-radius:6px;background:linear-gradient(180deg,rgba(26,144,150,.95),rgba(24,183,184,.95));border:1px solid rgba(255,255,255,.12);box-shadow:inset 0 1px 0 rgba(255,255,255,.18)}
+.totm-fp-panel-label{font-size:9px;font-weight:900;letter-spacing:1px;text-transform:uppercase;color:rgba(255,255,255,.78)}
+.totm-fp-panel-value{font-size:18px;font-weight:900;line-height:1;color:#fff;text-shadow:0 1px 2px rgba(0,0,0,.25)}
+.totm-conditions{max-width:42%}
+.totm-actor-status-bar{position:absolute;left:10px;right:10px;bottom:8px;z-index:6;display:flex;justify-content:center;gap:4px;opacity:0;pointer-events:none;transform:translateY(4px);transition:opacity 150ms ease,transform 150ms ease}
+.totm-actor-card:hover .totm-actor-status-bar,.totm-actor-card.has-status-afk .totm-actor-status-bar,.totm-actor-card.has-status-missing .totm-actor-status-bar,.totm-actor-card.externally-targeted .totm-actor-status-bar{opacity:1;pointer-events:auto;transform:translateY(0)}
+.totm-actor-status-bar button{padding:2px 6px;font-size:9px;border-radius:3px}
 .totm-cond-dropdown{position:absolute;bottom:100%;left:50%;transform:translateX(-50%);background:rgba(15,15,25,.95);border:1px solid var(--totm-panel-border);border-radius:6px;padding:6px;z-index:10;display:flex;flex-direction:column;gap:2px;min-width:130px;backdrop-filter:blur(8px);box-shadow:0 4px 20px rgba(0,0,0,.5)}
 .totm-cond-dropdown button{background:none;border:none;color:var(--totm-text-dim);padding:5px 8px;font-size:11px;text-align:left;border-radius:3px;cursor:pointer;display:flex;align-items:center;gap:6px;font-family:inherit}
 .totm-cond-dropdown button:hover{background:rgba(255,255,255,.06);color:var(--totm-text)}
@@ -197,6 +185,15 @@ background-size:30px 30px,24px 24px,36px 36px;opacity:.78;animation:totmSnowFall
 #totm-stage{position:absolute;inset:0;z-index:3;pointer-events:none;overflow:hidden}
 #totm-topbar{display:flex;align-items:center;justify-content:space-between;padding:8px 12px;z-index:6;position:relative;flex-shrink:0;flex-wrap:wrap;gap:4px}
 .totm-topbar-left,.totm-topbar-right{display:flex;align-items:center;gap:5px;flex-wrap:wrap}
+#totm-st-slot{display:flex;align-items:center;max-width:100%;overflow:hidden;flex:0 1 auto}
+#totm-st-slot #simple-timekeeping{position:static!important;top:auto!important;left:auto!important;margin:0!important;width:auto!important;min-width:0!important;z-index:auto!important;zoom:.82}
+#totm-st-slot #simple-timekeeping nav{padding:0;gap:2px}
+#totm-st-slot #simple-timekeeping #events{display:none!important}
+#totm-st-slot #simple-timekeeping .controls-left,#totm-st-slot #simple-timekeeping .controls-right{gap:0}
+#totm-st-slot #simple-timekeeping nav button{width:20px;height:20px;min-width:20px;padding:0}
+#totm-st-slot #simple-timekeeping nav button i{font-size:11px}
+#totm-st-slot #simple-timekeeping .inner-nav-wrapper{gap:3px;align-items:center}
+#totm-st-slot #simple-timekeeping .inner-nav-wrapper span{padding:1px 8px;font-size:11px;line-height:1.1}
 .totm-scene-label{font-size:13px;font-weight:600;color:var(--totm-text)}
 .totm-live-badge{display:inline-flex;align-items:center;gap:4px;padding:3px 8px;border-radius:12px;font-size:9px;font-weight:700;letter-spacing:1px;text-transform:uppercase}
 .totm-live-badge.is-live{background:rgba(68,170,136,.2);color:#6ec9a0;border:1px solid rgba(68,170,136,.3)}.totm-live-badge.is-gm{background:rgba(160,57,46,.2);color:#d07060;border:1px solid rgba(160,57,46,.3)}

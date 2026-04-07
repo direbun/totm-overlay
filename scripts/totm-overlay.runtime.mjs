@@ -107,21 +107,60 @@ function getSimpleTimekeepingWeather(scene=game.scenes.viewed){
 function getWeatherDisplayText(){
   return getSimpleTimekeepingWeather()?.label||"";
 }
+function getSimpleTimekeepingElement(app=getSimpleTimekeepingApp()){
+  const el=app?.element;
+  if(!el)return null;
+  if(el instanceof HTMLElement)return el;
+  if(el[0] instanceof HTMLElement)return el[0];
+  return null;
+}
 function ensureSimpleTimekeepingVisible(){
   const app=getSimpleTimekeepingApp();
   if(app?.render){
     app.render({force:true});
-    app.element?.classList?.remove?.("hidden");
-    try{document.querySelector("#ui-top")?.prepend(app.element);}catch{}
+    const el=document.querySelector("#simple-timekeeping")||getSimpleTimekeepingElement(app);
+    el?.classList?.remove?.("hidden");
+    try{if(el)document.querySelector("#ui-top")?.prepend(el);}catch{}
     return app;
   }
   return null;
 }
+function mountSimpleTimekeepingIntoTotm(){
+  if(!hasSimpleTimekeeping())return;
+  const slot=document.querySelector("#totm-st-slot");
+  if(!slot)return;
+  ensureSimpleTimekeepingVisible();
+  const mount=()=>{
+    const el=document.querySelector("#simple-timekeeping");
+    if(!slot.isConnected)return;
+    if(!el)return;
+    slot.innerHTML="";
+    slot.appendChild(el);
+    el.classList.add("totm-st-embedded");
+  };
+  mount();
+  setTimeout(mount,0);
+  setTimeout(mount,50);
+}
+function restoreSimpleTimekeepingHost(){
+  if(!hasSimpleTimekeeping())return;
+  const el=document.querySelector("#simple-timekeeping")||getSimpleTimekeepingElement(getSimpleTimekeepingApp());
+  if(!el)return;
+  const host=document.querySelector("#ui-top");
+  if(host)host.prepend(el);
+  el.classList.remove("totm-st-embedded");
+}
 function dispatchSimpleTimekeepingTarget(selector){
   const app=ensureSimpleTimekeepingVisible();
-  const target=app?.element?.querySelector?.(selector);
+  const target=getSimpleTimekeepingElement(app)?.querySelector?.(selector);
   if(target){
-    target.dispatchEvent(new MouseEvent("click",{bubbles:true,cancelable:true,view:window}));
+    setTimeout(()=>{
+      target.dispatchEvent(new PointerEvent("pointerdown",{bubbles:true,cancelable:true,view:window}));
+      target.dispatchEvent(new MouseEvent("mousedown",{bubbles:true,cancelable:true,view:window}));
+      target.dispatchEvent(new PointerEvent("pointerup",{bubbles:true,cancelable:true,view:window}));
+      target.dispatchEvent(new MouseEvent("mouseup",{bubbles:true,cancelable:true,view:window}));
+      target.dispatchEvent(new MouseEvent("click",{bubbles:true,cancelable:true,view:window}));
+    },50);
     return true;
   }
   return false;
@@ -130,6 +169,11 @@ function openSimpleTimekeeping(mode="app"){
   if(mode==="weather"){
     if(dispatchSimpleTimekeepingTarget("#weather"))return;
   }else if(mode==="time"){
+    const app=ensureSimpleTimekeepingVisible();
+    if(game.user.isGM&&app?.setCurrentDateTime){
+      app.setCurrentDateTime();
+      return;
+    }
     if(dispatchSimpleTimekeepingTarget("#date-time-text"))return;
   }
   const app=ensureSimpleTimekeepingVisible();
@@ -195,6 +239,7 @@ function regSettings(){
   game.settings.register(MODULE_ID,"systemPreset",{name:"System Preset",scope:"world",config:true,type:String,default:"custom",choices:Object.fromEntries(Object.entries(PRESETS).map(([k,v])=>[k,v.l]))});
   game.settings.register(MODULE_ID,"subtitlePath",{name:"Subtitle Path",scope:"world",config:true,type:String,default:""});
   game.settings.register(MODULE_ID,"portraitSource",{name:"Portrait Source",scope:"world",config:true,type:String,default:"actor",choices:{actor:"Actor Art",token:"Token Image"}});
+  game.settings.register(MODULE_ID,"uiTheme",{name:"UI Theme",scope:"world",config:true,type:String,default:"classic",choices:Object.fromEntries(UI_THEMES.map(t=>[t.id,t.label]))});
   game.settings.register(MODULE_ID,"conditions",{name:"Conditions JSON",scope:"world",config:true,type:String,default:JSON.stringify(DEF_CONDS)});
   game.settings.register(MODULE_ID,"playersCanAfk",{name:"Players Can AFK",scope:"world",config:true,type:Boolean,default:true});
   game.settings.register(MODULE_ID,"damageAnimations",{name:"Damage Animation Config",scope:"world",config:false,type:Object,default:defaultAnimSettings()});
@@ -221,7 +266,7 @@ function bindDamageAnimDialog(html){html.find("[data-pick]").on("click",ev=>{con
 function openDamageAnimConfig(){const rows=damageAnimRows();new Dialog({title:"TOTM Damage Animations",content:buildDamageAnimDialogContent(rows),buttons:{save:{icon:'<i class="fas fa-save"></i>',label:"Save",callback:async html=>{await saveDamageAnimFromHtml(html);}}},default:"save",render:html=>{bindDamageAnimDialog(html);}}).render(true);}
 function openClockCreateDialog(){if(!hasClockModule())return;const db=window.clockDatabase;if(!db.canUserEdit(game.user)){ui.notifications.warn("You do not have permission to create clocks.");return;}new Dialog({title:"Add Clock",content:`<form><div class="form-group"><label>Name</label><input name="name" placeholder="Danger Clock"/></div><div class="form-group"><label>Type</label><select name="type"><option value="clock">Clock</option><option value="tracker">Tracker</option><option value="points">Points</option></select></div><div class="form-group"><label>Max</label><input type="number" name="max" min="1" max="99" step="1" value="6"/></div><div class="form-group"><label><input type="checkbox" name="private"/> Private</label></div></form>`,buttons:{add:{icon:'<i class="fas fa-plus"></i>',label:"Add",callback:async h=>{const type=h.find("[name=type]").val(),maxRaw=+h.find("[name=max]").val(),max=Math.max(1,Math.min(type==="points"?99:type==="tracker"?12:128,Number.isFinite(maxRaw)?maxRaw:6));db.addClock({name:h.find("[name=name]").val().trim()||"New Clock",type,max,private:h.find("[name=private]").is(":checked")});CLOCKS_OPEN=true;const s=game.scenes.viewed;if(s&&isTOTM(s))refreshUI(s);}}},default:"add"}).render(true);}
 function getImg(a){const src=game.settings.get(MODULE_ID,"portraitSource"),ac=game.actors.get(a.id);if(!ac)return a.img||"icons/svg/mystery-man.svg";return src==="token"?(ac.prototypeToken?.texture?.src||ac.img||"icons/svg/mystery-man.svg"):(ac.img||"icons/svg/mystery-man.svg");}
-function makeEntry(actor){const p=PRESETS[game.settings.get(MODULE_ID,"systemPreset")];const res=[];if(p?.hp)res.push({label:"HP",icon:"fas fa-heart",path:p.hp,maxPath:p.hpM,color:"res-hp"});return{id:actor.id,name:actor.name,img:actor.prototypeToken?.texture?.src||actor.img||"icons/svg/mystery-man.svg",artImg:actor.img||"icons/svg/mystery-man.svg",visible:true,highlighted:false,bgOffsetX:50,bgOffsetY:20,bgScale:150,status:"",conditions:[],resources:res,pinVisible:false,pinImg:actor.img||actor.prototypeToken?.texture?.src||"icons/svg/mystery-man.svg",pinSize:64,pinX:50,pinY:50};}
+function makeEntry(actor,idx=0){const p=PRESETS[game.settings.get(MODULE_ID,"systemPreset")];const res=[];if(p?.hp)res.push({label:"HP",icon:"fas fa-heart",path:p.hp,maxPath:p.hpM,color:"res-hp"});return{id:actor.id,name:actor.name,img:actor.prototypeToken?.texture?.src||actor.img||"icons/svg/mystery-man.svg",artImg:actor.img||"icons/svg/mystery-man.svg",visible:true,highlighted:false,bgOffsetX:50,bgOffsetY:20,bgScale:150,bgAutoFit:false,combatImg:"",combatOffsetX:50,combatOffsetY:20,combatScale:150,combatAutoFit:false,status:"",conditions:[],resources:res,pinVisible:false,pinImg:actor.img||actor.prototypeToken?.texture?.src||"icons/svg/mystery-man.svg",pinSize:64,pinX:50,pinY:50};}
 const makeEnemyInstanceId=()=>foundry.utils.randomID();
 const enemyTargetId=e=>e?.instanceId||e?.id;
 function makeEnemyEntry(actor,overrides={}){const entry=makeEntry(actor);return foundry.utils.mergeObject({instanceId:makeEnemyInstanceId(),id:actor.id,name:actor.name,image:actor.prototypeToken?.texture?.src||actor.img||"icons/svg/mystery-man.svg",posX:30+Math.random()*40,posY:55+Math.random()*20,scale:100,tokenId:null,resources:entry.resources,phaseEnabled:false,nextFormId:"",nextFormName:"",nextFormImage:"",nextPosX:null,nextPosY:null,nextScale:null,phaseUsed:false,transitionState:"",transitionAt:0,pendingPhasePrompt:false},overrides,{inplace:false,overwrite:true});}
@@ -474,13 +519,12 @@ function startSB(){stopSB();const sb=document.getElementById("sidebar");if(!sb)r
 function stopSB(){if(sRO){sRO.disconnect();sRO=null;}if(sMO){sMO.disconnect();sMO=null;}}
 function injectUI(){if(document.getElementById("totm-ui"))return;document.body.appendChild(Object.assign(document.createElement("div"),{id:"totm-ui"}));}
 function activate(s){document.body.classList.add("totm-active");injectUI();refreshUI(s);fitSB();syncHotbarPosition();startSB();setTimeout(()=>{fitSB();syncHotbarPosition();},50);setTimeout(()=>{fitSB();syncHotbarPosition();},200);}
-function deactivate(){document.body.classList.remove("totm-active");const el=document.getElementById("totm-ui");if(el)el.innerHTML="";stopSB();syncHotbarPosition();}
-
+function deactivate(){document.body.classList.remove("totm-active");restoreSimpleTimekeepingHost();const el=document.getElementById("totm-ui");if(el)el.innerHTML="";stopSB();syncHotbarPosition();}
 // â”€â”€ RENDER â”€â”€
 function refreshUI(scene){
   const el=document.getElementById("totm-ui");if(!el)return;
   const d=getData(scene);
-  const theme=getThemeMeta(d.style);
+  const theme=getThemeMeta(game.settings.get(MODULE_ID,"uiTheme")||d.style||"classic");
   el.dataset.style=theme.id;
   el.style.setProperty("--totm-target-color",getUserTargetColor());
   if(!isGM()&&!d.shared){el.innerHTML=`<div style="display:flex;align-items:center;justify-content:center;width:100%;height:100%;color:var(--totm-text-faint);font-size:14px;">The GM is preparingâ€¦</div>`;return;}
@@ -491,8 +535,7 @@ function refreshUI(scene){
   const bgStyle=d.background?`background-image:url('${d.background}');background-position:${d.bgPosX??50}% ${d.bgPosY??50}%;background-size:${getBgSizeCss(d.bgZoom,d.bgStretch)};background-repeat:no-repeat`:"";
   const bgFadeClass=d.bgFadeAt&&Date.now()-d.bgFadeAt<BG_FADE_MS+150?"totm-bg-fade":"";
 
-  el.innerHTML=`${renderWeatherLayer(scene)}
-    <div class="totm-layout">
+  el.innerHTML=`<div class="totm-layout">
       <div class="totm-main-row">
         <div id="totm-actor-panel">
           <div class="totm-panel-header"><h3>Players</h3>${isGM()?`<div class="totm-header-btns"><button class="totm-btn-sm" id="totm-random-player" title="Random Player Target"><i class="fas fa-dice"></i></button><button class="totm-btn-sm" id="totm-add-actor"><i class="fas fa-plus"></i></button></div>`:""}</div>
@@ -520,26 +563,19 @@ function renderArt(d){if(d.featuredArt)return`<img src="${d.featuredArt}"/>${d.f
 function renderEnemyBar(d){return renderEnemyBarModule({d,scene:game.scenes.viewed,deps:{getTargets,normalizeEnemyEntry,getEncounterActor,getRes,enemyTargetId,getEnemyTargetUsers,ENEMY_FADE_MS,isGM,renderBars}});}
 function renderClockDock(){if(!hasClockModule())return"";const clocks=getClockEntries(),canEdit=window.clockDatabase?.canUserEdit?.(game.user),controls=clock=>clock.editable?`<button class="totm-clock-delete" data-clock-act="delete" data-clock-id="${clock.id}" title="Delete Clock"><i class="fas fa-trash"></i></button>`:"";return`<div id="totm-clock-dock" class="${CLOCKS_OPEN?"is-open":"is-closed"}"><div class="totm-clock-dock-head"><div class="totm-clock-title"><i class="fas fa-clock"></i> Clocks</div><div class="totm-clock-dock-actions">${canEdit?`<button class="totm-btn-sm" id="totm-clock-add" title="Add Clock"><i class="fas fa-plus"></i></button>`:""}<div class="totm-clock-count">${clocks.length}</div></div></div>${clocks.length?`<div class="totm-clock-list">${clocks.map(clock=>clock.type==="tracker"?`<div class="totm-clock-entry ${clock.editable?"editable":""}" data-clock-id="${clock.id}" data-clock-type="${clock.type}" style="--clock-color:${clock.color};--clock-bg:${clock.backgroundColor};"><div class="totm-clock-main"><div class="totm-clock-meta"><span class="totm-clock-name">${clock.private?`<i class="fas fa-eye-slash"></i> `:""}${clock.name}</span><span class="totm-clock-value">${clock.value}/${clock.max}</span></div><div class="totm-clock-tracker">${clock.slashes.map(f=>`<span class="totm-clock-slash ${f?"filled":""}"></span>`).join("")}</div></div>${controls(clock)}</div>`:clock.type==="points"?`<div class="totm-clock-entry points ${clock.editable?"editable":""}" data-clock-id="${clock.id}" data-clock-type="${clock.type}" style="--clock-color:${clock.color};--clock-bg:${clock.backgroundColor};"><div class="totm-clock-main"><div class="totm-clock-meta"><span class="totm-clock-name">${clock.private?`<i class="fas fa-eye-slash"></i> `:""}${clock.name}</span><span class="totm-clock-points">${clock.value}</span></div></div>${controls(clock)}</div>`:`<div class="totm-clock-entry ${clock.editable?"editable":""}" data-clock-id="${clock.id}" data-clock-type="${clock.type}" style="--clock-color:${clock.color};--clock-bg:${clock.backgroundColor};--clock-pct:${Math.round(clock.ratio*100)}%;"><div class="totm-clock-main"><div class="totm-clock-ring"><div class="totm-clock-ring-inner">${clock.value}/${clock.max}</div></div><div class="totm-clock-meta"><span class="totm-clock-name">${clock.private?`<i class="fas fa-eye-slash"></i> `:""}${clock.name}</span></div></div>${controls(clock)}</div>`).join("")}</div>`:`<div class="totm-clock-empty">No clocks yet.</div>`}</div>`;}
 
-function renderTopbar(d,scene){return renderTopbarModule({d,scene,deps:{getThemeMeta,hasClockModule,getClockEntries,getTimeDisplayText:getSimpleTimekeepingText,getWeatherDisplayText}});}
-function renderWeatherLayer(scene){
-  const weather=getSimpleTimekeepingWeather(scene);
-  if(!weather)return `<div id="totm-weather-layer" class="is-clear"></div>`;
-  const effect=foundry.utils.escapeHTML(String(weather.effect||""));
-  const label=foundry.utils.escapeHTML(String(weather.label||""));
-  const color=String(weather.color||"#ffffff").replace(/"/g,"&quot;");
-  return `<div id="totm-weather-layer" data-weather-effect="${effect}" data-weather-label="${label}" style="--totm-weather-color:${color};"></div>`;
-}
+function renderTopbar(d,scene){return renderTopbarModule({d,scene,deps:{hasClockModule,getClockEntries,getTimeDisplayText:getSimpleTimekeepingText,getWeatherDisplayText,hasSimpleTimekeeping}});}
 
 // â”€â”€ EVENTS â”€â”€
 function bindEvents(scene,d){
   const el=document.getElementById("totm-ui");if(!el)return;
   const hotbarSlot=el.querySelector("#totm-hotbar-slot");
   bindTotmHotbarDropZone(hotbarSlot);
-  bindTotmHotbarUi(el,{refresh:()=>{const s=game.scenes.viewed;if(s&&isTOTM(s))refreshUI(s);}});
-  if(isGM()){
-    bindSceneAdminEventsModule({el,scene,d,deps:{openMasterLibraryPicker,openBgPicker,openNpcPicker,openEncPicker,CLOCKS_OPEN_ref:()=>CLOCKS_OPEN,setCLOCKS_OPEN:v=>{CLOCKS_OPEN=v;},refreshUI,nextThemeId,getThemeMeta,saveData,emit,openBgCfg,clearCurrentBackgroundProps,addQuestPin,toggleGmPin,openGmPinCfg,clearEncounterState,openSimpleTimekeeping}});
-  }
-  el.querySelector("#totm-clock-add")?.addEventListener("click",e=>{e.stopPropagation();openClockCreateDialog();});
+    bindTotmHotbarUi(el,{refresh:()=>{const s=game.scenes.viewed;if(s&&isTOTM(s))refreshUI(s);}});
+    if(isGM()){
+      bindSceneAdminEventsModule({el,scene,d,deps:{openMasterLibraryPicker,openBgPicker,openNpcPicker,openEncPicker,CLOCKS_OPEN_ref:()=>CLOCKS_OPEN,setCLOCKS_OPEN:v=>{CLOCKS_OPEN=v;},refreshUI,openBgCfg,clearCurrentBackgroundProps,addQuestPin,toggleGmPin,openGmPinCfg,clearEncounterState,openSimpleTimekeeping}});
+    }
+    mountSimpleTimekeepingIntoTotm();
+    el.querySelector("#totm-clock-add")?.addEventListener("click",e=>{e.stopPropagation();openClockCreateDialog();});
   el.querySelectorAll("[data-clock-act='delete']").forEach(btn=>btn.addEventListener("click",async e=>{e.stopPropagation();await deleteClock(e.currentTarget.dataset.clockId);refreshUI(scene);}));
   el.querySelector("#totm-clock-dock")?.addEventListener("click",async e=>{const entry=e.target.closest("[data-clock-id]");if(!entry)return;await stepClock(entry.dataset.clockId,1);refreshUI(scene);});
   el.querySelector("#totm-clock-dock")?.addEventListener("contextmenu",async e=>{const entry=e.target.closest("[data-clock-id]");if(!entry)return;e.preventDefault();await stepClock(entry.dataset.clockId,-1);refreshUI(scene);});
@@ -1157,9 +1193,9 @@ function openEncEditor(scene,d,onDone,existing=null,existingIndex=-1){
 
 // â”€â”€ ACTOR CONFIG â”€â”€
 function openActorCfg(scene,d,idx){const a=d.actors[idx];if(!a)return;const avail=discRes(a.id);function ci(c){return c==="res-hp"?"#5cb85c":c==="res-1"?"#5ba8e0":c==="res-2"?"#b07cc8":"#d0c050";}function brl(r){if(!r.length)return'<div style="color:#888;font-size:11px;padding:6px;text-align:center;">No resources</div>';return r.map((x,i)=>`<div style="display:flex;align-items:center;gap:6px;padding:4px;background:rgba(255,255,255,.03);border-radius:4px;margin-bottom:2px;"><i class="${x.icon}" style="color:${ci(x.color)};"></i><span style="flex:1;font-size:11px;font-weight:600;">${x.label}</span><button type="button" data-rr="${i}" style="background:none;border:none;color:#a05050;cursor:pointer;"><i class="fas fa-times"></i></button></div>`).join("");}function bpo(r){return avail.map(av=>`<option value="${av.path}|${av.maxPath}" ${r.find(x=>x.path===av.path)?"disabled":""}>${av.label} (${av.value}/${av.max})</option>`).join("");}
-  new Dialog({title:`Settings â€“ ${a.name}`,content:`<form style="max-height:500px;overflow-y:auto;"><h3 style="border-bottom:1px solid #555;margin:0 0 6px;font-size:12px;">Image</h3><div class="form-group"><label>X</label><input type="range" name="bx" min="0" max="100" value="${a.bgOffsetX??50}"/></div><div class="form-group"><label>Y</label><input type="range" name="by" min="0" max="100" value="${a.bgOffsetY??20}"/></div><div class="form-group"><label>Zoom</label><input type="range" name="bs" min="100" max="400" value="${a.bgScale??150}" step="10"/></div><h3 style="border-bottom:1px solid #555;margin:10px 0 6px;font-size:12px;">Resources</h3><div id="rl">${brl(a.resources||[])}</div>${avail.length?`<div style="display:flex;gap:4px;margin-top:4px;"><select id="rp" style="flex:1;font-size:11px;"><option value="">â€” Select â€”</option>${bpo(a.resources||[])}</select><select id="rc" style="font-size:11px;">${COLORS.map(c=>`<option value="${c.v}">${c.l}</option>`).join("")}</select><button type="button" id="ra" style="padding:2px 8px;cursor:pointer;"><i class="fas fa-plus"></i></button></div>`:""}</form>`,buttons:{save:{icon:'<i class="fas fa-check"></i>',label:"Save",callback:async h=>{d.actors[idx].bgOffsetX=+h.find("[name=bx]").val();d.actors[idx].bgOffsetY=+h.find("[name=by]").val();d.actors[idx].bgScale=+h.find("[name=bs]").val();await saveData(scene,d);emit();refreshUI(scene);}}},default:"save",render:h=>{const bg=document.querySelector(`.totm-actor-card[data-idx="${idx}"] .totm-card-bg`);if(bg)h.find("input[type=range]").on("input",()=>{bg.style.backgroundPosition=`${h.find("[name=bx]").val()}% ${h.find("[name=by]").val()}%`;bg.style.backgroundSize=`${h.find("[name=bs]").val()}%`;});function rr(){h.find("#rl").html(brl(d.actors[idx].resources||[]));if(h.find("#rp").length)h.find("#rp").html(`<option value="">â€” Select â€”</option>${bpo(d.actors[idx].resources||[])}`);br();}h.find("#ra").on("click",()=>{const v=h.find("#rp").val();if(!v)return;const[path,maxPath]=v.split("|");const c=h.find("#rc").val()||"res-hp";const cd=COLORS.find(x=>x.v===c)||COLORS[0];const disc=avail.find(x=>x.path===path);if(!disc)return;if(!d.actors[idx].resources)d.actors[idx].resources=[];d.actors[idx].resources.push({label:disc.label,icon:cd.i,path,maxPath,color:c});rr();});function br(){h.find("[data-rr]").off("click").on("click",function(){d.actors[idx].resources.splice(+this.dataset.rr,1);rr();});}br();}}).render(true);}
+  new Dialog({title:`Settings â€“ ${a.name}`,content:`<form style="max-height:540px;overflow-y:auto;"><h3 style="border-bottom:1px solid #555;margin:0 0 6px;font-size:12px;">Default Image</h3><div class="form-group"><label>X</label><input type="range" name="bx" min="0" max="100" value="${a.bgOffsetX??50}"/></div><div class="form-group"><label>Y</label><input type="range" name="by" min="0" max="100" value="${a.bgOffsetY??20}"/></div><div class="form-group"><label>Zoom</label><input type="range" name="bs" min="100" max="400" value="${a.bgScale??150}" step="10"/></div><div class="form-group"><label><input type="checkbox" name="bfit" ${a.bgAutoFit?"checked":""}/> Auto fit image into portrait box</label></div><h3 style="border-bottom:1px solid #555;margin:10px 0 6px;font-size:12px;">Combat Image</h3><div class="form-group"><label>Image</label><div style="display:flex;gap:6px;align-items:center;"><input type="text" name="combatImg" value="${a.combatImg??""}" placeholder="Optional combat portrait" style="flex:1;"/><button type="button" name="combatBrowse" style="padding:2px 8px;cursor:pointer;"><i class="fas fa-folder-open"></i></button><button type="button" name="combatClear" style="padding:2px 8px;cursor:pointer;"><i class="fas fa-times"></i></button></div></div><div class="form-group"><label>X</label><input type="range" name="cbx" min="0" max="100" value="${a.combatOffsetX??a.bgOffsetX??50}"/></div><div class="form-group"><label>Y</label><input type="range" name="cby" min="0" max="100" value="${a.combatOffsetY??a.bgOffsetY??20}"/></div><div class="form-group"><label>Zoom</label><input type="range" name="cbs" min="100" max="400" value="${a.combatScale??a.bgScale??150}" step="10"/></div><div class="form-group"><label><input type="checkbox" name="cbfit" ${a.combatAutoFit?"checked":""}/> Auto fit combat image into portrait box</label></div><p style="margin:4px 0 0;color:#888;font-size:11px;">When a fight is active, this image will replace the normal player portrait automatically.</p><h3 style="border-bottom:1px solid #555;margin:10px 0 6px;font-size:12px;">Resources</h3><div id="rl">${brl(a.resources||[])}</div>${avail.length?`<div style="display:flex;gap:4px;margin-top:4px;"><select id="rp" style="flex:1;font-size:11px;"><option value="">â€” Select â€”</option>${bpo(a.resources||[])}</select><select id="rc" style="font-size:11px;">${COLORS.map(c=>`<option value="${c.v}">${c.l}</option>`).join("")}</select><button type="button" id="ra" style="padding:2px 8px;cursor:pointer;"><i class="fas fa-plus"></i></button></div>`:""}</form>`,buttons:{save:{icon:'<i class="fas fa-check"></i>',label:"Save",callback:async h=>{d.actors[idx].bgOffsetX=+h.find("[name=bx]").val();d.actors[idx].bgOffsetY=+h.find("[name=by]").val();d.actors[idx].bgScale=+h.find("[name=bs]").val();d.actors[idx].bgAutoFit=h.find("[name=bfit]").is(":checked");d.actors[idx].combatImg=String(h.find("[name=combatImg]").val()||"").trim();d.actors[idx].combatOffsetX=+h.find("[name=cbx]").val();d.actors[idx].combatOffsetY=+h.find("[name=cby]").val();d.actors[idx].combatScale=+h.find("[name=cbs]").val();d.actors[idx].combatAutoFit=h.find("[name=cbfit]").is(":checked");await saveData(scene,d);emit();refreshUI(scene);}}},default:"save",render:h=>{const bg=document.querySelector(`.totm-actor-card[data-idx="${idx}"] .totm-card-bg`);const previewDefault=()=>{if(!bg)return;bg.style.backgroundImage=`url('${getImg(d.actors[idx])}')`;bg.style.backgroundPosition=`${h.find("[name=bx]").val()}% ${h.find("[name=by]").val()}%`;bg.style.backgroundSize=h.find("[name=bfit]").is(":checked")?"cover":`${h.find("[name=bs]").val()}%`;};const previewCombat=()=>{if(!bg)return;const combatImg=String(h.find("[name=combatImg]").val()||"").trim();bg.style.backgroundImage=`url('${combatImg||getImg(d.actors[idx])}')`;bg.style.backgroundPosition=`${h.find("[name=cbx]").val()}% ${h.find("[name=cby]").val()}%`;bg.style.backgroundSize=h.find("[name=cbfit]").is(":checked")?"cover":`${h.find("[name=cbs]").val()}%`;};if(bg){h.find("[name=bx],[name=by],[name=bs],[name=bfit]").on("input change",previewDefault);h.find("[name=combatImg],[name=cbx],[name=cby],[name=cbs],[name=cbfit]").on("input change",previewCombat);}h.find("[name=combatBrowse]").on("click",()=>new FilePicker({type:"image",callback:path=>{h.find("[name=combatImg]").val(path);previewCombat();}}).browse());h.find("[name=combatClear]").on("click",()=>{h.find("[name=combatImg]").val("");previewCombat();});function rr(){h.find("#rl").html(brl(d.actors[idx].resources||[]));if(h.find("#rp").length)h.find("#rp").html(`<option value="">â€” Select â€”</option>${bpo(d.actors[idx].resources||[])}`);br();}h.find("#ra").on("click",()=>{const v=h.find("#rp").val();if(!v)return;const[path,maxPath]=v.split("|");const c=h.find("#rc").val()||"res-hp";const cd=COLORS.find(x=>x.v===c)||COLORS[0];const disc=avail.find(x=>x.path===path);if(!disc)return;if(!d.actors[idx].resources)d.actors[idx].resources=[];d.actors[idx].resources.push({label:disc.label,icon:cd.i,path,maxPath,color:c});rr();});function br(){h.find("[data-rr]").off("click").on("click",function(){d.actors[idx].resources.splice(+this.dataset.rr,1);rr();});}br();}}).render(true);}
 
-function pickActor(scene,d){const av=game.actors.contents.filter(a=>!d.actors.find(e=>e.id===a.id));if(!av.length){ui.notifications.warn("All actors added.");return;}new Dialog({title:"Add Player",content:`<form><div class="form-group"><label>Actor</label><select name="a" style="width:100%">${av.map(a=>`<option value="${a.id}">${a.name}</option>`).join("")}</select></div></form>`,buttons:{add:{icon:'<i class="fas fa-plus"></i>',label:"Add",callback:async h=>{const a=game.actors.get(h.find("[name=a]").val());if(!a)return;d.actors.push(makeEntry(a));await saveData(scene,d);emit();refreshUI(scene);}}},default:"add"}).render(true);}
+function pickActor(scene,d){const av=game.actors.contents.filter(a=>!d.actors.find(e=>e.id===a.id));if(!av.length){ui.notifications.warn("All actors added.");return;}new Dialog({title:"Add Player",content:`<form><div class="form-group"><label>Actor</label><select name="a" style="width:100%">${av.map(a=>`<option value="${a.id}">${a.name}</option>`).join("")}</select></div></form>`,buttons:{add:{icon:'<i class="fas fa-plus"></i>',label:"Add",callback:async h=>{const a=game.actors.get(h.find("[name=a]").val());if(!a)return;d.actors.push(makeEntry(a,d.actors.length));await saveData(scene,d);emit();refreshUI(scene);}}},default:"add"}).render(true);}
 
 // â”€â”€ HOOKS â”€â”€
 Hooks.on("updateActor",async a=>{if(!document.body.classList.contains("totm-active"))return;const s=game.scenes.viewed;if(!s||!isTOTM(s))return;const d=getData(s);if(d.actors.find(x=>x.id===a.id)||d.enemies.find(x=>x.id===a.id)){refreshUI(s);await checkEncounterEnemyStates(s,d);}});
