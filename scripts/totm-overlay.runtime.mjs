@@ -107,9 +107,33 @@ function getSimpleTimekeepingWeather(scene=game.scenes.viewed){
 function getWeatherDisplayText(){
   return getSimpleTimekeepingWeather()?.label||"";
 }
-function openSimpleTimekeeping(){
+function ensureSimpleTimekeepingVisible(){
   const app=getSimpleTimekeepingApp();
-  if(app?.render){app.render({force:true});return;}
+  if(app?.render){
+    app.render({force:true});
+    app.element?.classList?.remove?.("hidden");
+    try{document.querySelector("#ui-top")?.prepend(app.element);}catch{}
+    return app;
+  }
+  return null;
+}
+function dispatchSimpleTimekeepingTarget(selector){
+  const app=ensureSimpleTimekeepingVisible();
+  const target=app?.element?.querySelector?.(selector);
+  if(target){
+    target.dispatchEvent(new MouseEvent("click",{bubbles:true,cancelable:true,view:window}));
+    return true;
+  }
+  return false;
+}
+function openSimpleTimekeeping(mode="app"){
+  if(mode==="weather"){
+    if(dispatchSimpleTimekeepingTarget("#weather"))return;
+  }else if(mode==="time"){
+    if(dispatchSimpleTimekeepingTarget("#date-time-text"))return;
+  }
+  const app=ensureSimpleTimekeepingVisible();
+  if(app)return;
   ui.notifications.warn("Simple Timekeeping is not ready yet.");
 }
 const questPinSvg=(label,bg="#1d3557",fg="#fff")=>`data:image/svg+xml;utf8,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="96" height="96" viewBox="0 0 96 96"><circle cx="48" cy="48" r="42" fill="${bg}" stroke="rgba(255,255,255,.85)" stroke-width="6"/><text x="48" y="60" text-anchor="middle" font-size="52" font-family="Arial, sans-serif" font-weight="700" fill="${fg}">${label}</text></svg>`)}`;

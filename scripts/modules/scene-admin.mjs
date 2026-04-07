@@ -10,8 +10,8 @@ export function bindSceneAdminEvents({el,scene,d,deps}){
   el.querySelector("#tb-bg")?.addEventListener("click",e=>{e.stopPropagation();openBgPicker(scene,d);});
   el.querySelector("#tb-npc")?.addEventListener("click",e=>{e.stopPropagation();openNpcPicker(scene,d);});
   el.querySelector("#tb-enc")?.addEventListener("click",e=>{e.stopPropagation();openEncPicker(scene,d);});
-  el.querySelector("#tb-timekeep")?.addEventListener("click",e=>{e.stopPropagation();openSimpleTimekeeping();});
-  el.querySelector("#tb-weather")?.addEventListener("click",e=>{e.stopPropagation();openSimpleTimekeeping();});
+  el.querySelector("#tb-timekeep")?.addEventListener("click",e=>{e.stopPropagation();openSimpleTimekeeping("time");});
+  el.querySelector("#tb-weather")?.addEventListener("click",e=>{e.stopPropagation();openSimpleTimekeeping("weather");});
   el.querySelector("#tb-clocks")?.addEventListener("click",()=>{setCLOCKS_OPEN(!CLOCKS_OPEN_ref());refreshUI(scene);});
   el.querySelector("#tb-style")?.addEventListener("click",async()=>{d.style=nextThemeId(d.style);await saveData(scene,d);emit();refreshUI(scene);ui.notifications.info(`TOTM style: ${getThemeMeta(d.style).label}`);});
   el.querySelector("#tb-bg-cfg")?.addEventListener("click",()=>openBgCfg(scene,d));

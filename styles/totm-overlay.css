@@ -70,7 +70,7 @@ body.totm-active #hotbar{opacity:0!important;pointer-events:none!important}
 
 /* Layout */
 #totm-ui .totm-layout{position:relative;z-index:1;display:flex;width:100%;height:100%;flex-direction:column}
-#totm-weather-layer{position:absolute;inset:0;z-index:2;pointer-events:none;overflow:hidden;opacity:.45}
+#totm-weather-layer{position:absolute;inset:0;z-index:2;pointer-events:none;overflow:hidden;opacity:1}
 #totm-weather-layer.is-clear{display:none}
 #totm-weather-layer::before,#totm-weather-layer::after{content:"";position:absolute;inset:-20%;pointer-events:none}
 #totm-weather-layer[data-weather-effect="fog"]::before{background:
@@ -79,15 +79,33 @@ radial-gradient(circle at 70% 35%,color-mix(in srgb,var(--totm-weather-color,#df
 radial-gradient(circle at 45% 75%,color-mix(in srgb,var(--totm-weather-color,#dfe6ee) 22%, transparent),transparent 26%);
 filter:blur(28px);opacity:.85;animation:totmFogDrift 18s linear infinite}
 #totm-weather-layer[data-weather-effect="rain"]::before,
-#totm-weather-layer[data-weather-effect="rainStorm"]::before{background:repeating-linear-gradient(115deg,transparent 0 14px,color-mix(in srgb,var(--totm-weather-color,#a0d8ef) 80%, white) 14px 16px,transparent 16px 34px);opacity:.5;animation:totmRainFall .65s linear infinite}
-#totm-weather-layer[data-weather-effect="rainStorm"]::after{background:linear-gradient(180deg,rgba(20,28,46,.28),rgba(5,8,18,.46));opacity:.8}
+#totm-weather-layer[data-weather-effect="rainStorm"]::before{background:
+repeating-linear-gradient(116deg,transparent 0 12px,color-mix(in srgb,var(--totm-weather-color,#a0d8ef) 88%, white) 12px 14px,transparent 14px 28px),
+repeating-linear-gradient(114deg,transparent 0 22px,color-mix(in srgb,var(--totm-weather-color,#a0d8ef) 72%, white) 22px 24px,transparent 24px 44px);
+opacity:.7;animation:totmRainFall .45s linear infinite}
+#totm-weather-layer[data-weather-effect="rainStorm"]::after{background:linear-gradient(180deg,rgba(20,28,46,.32),rgba(5,8,18,.5));opacity:.9}
 #totm-weather-layer[data-weather-effect="snow"]::before,
-#totm-weather-layer[data-weather-effect="blizzard"]::before{background-image:radial-gradient(circle,color-mix(in srgb,var(--totm-weather-color,#fff) 88%, white) 0 2px,transparent 3px);background-size:42px 42px;opacity:.65;animation:totmSnowFall 6s linear infinite}
-#totm-weather-layer[data-weather-effect="blizzard"]::after{background-image:radial-gradient(circle,color-mix(in srgb,var(--totm-weather-color,#fff) 92%, white) 0 2px,transparent 3px);background-size:26px 26px;opacity:.55;animation:totmSnowFall 3.6s linear infinite}
+#totm-weather-layer[data-weather-effect="blizzard"]::before{background-image:
+radial-gradient(circle at 15% 25%,rgba(255,255,255,.95) 0 1px,transparent 1.7px),
+radial-gradient(circle at 70% 60%,rgba(255,255,255,.88) 0 1.2px,transparent 1.9px),
+radial-gradient(circle at 35% 80%,rgba(255,255,255,.82) 0 1px,transparent 1.8px),
+radial-gradient(circle at 85% 35%,rgba(255,255,255,.9) 0 1.2px,transparent 2px);
+background-size:22px 22px,28px 28px,18px 18px,34px 34px;opacity:.95;animation:totmSnowFall 2.8s linear infinite}
+#totm-weather-layer[data-weather-effect="blizzard"]::after{background-image:
+radial-gradient(circle at 20% 30%,rgba(255,255,255,.78) 0 1.6px,transparent 2.3px),
+radial-gradient(circle at 65% 45%,rgba(255,255,255,.72) 0 1.4px,transparent 2px),
+radial-gradient(circle at 40% 75%,rgba(255,255,255,.68) 0 1.2px,transparent 1.9px);
+background-size:14px 14px,18px 18px,24px 24px;opacity:.8;animation:totmSnowFallFast 1.35s linear infinite}
+#totm-weather-layer[data-weather-effect="snow"]::before{background-image:
+radial-gradient(circle at 15% 25%,rgba(255,255,255,.92) 0 1px,transparent 1.8px),
+radial-gradient(circle at 70% 60%,rgba(255,255,255,.86) 0 1.1px,transparent 1.8px),
+radial-gradient(circle at 35% 80%,rgba(255,255,255,.8) 0 1px,transparent 1.7px);
+background-size:30px 30px,24px 24px,36px 36px;opacity:.78;animation:totmSnowFall 4.8s linear infinite}
 #totm-weather-layer[data-weather-effect="leaves"]::before{background-image:radial-gradient(circle,color-mix(in srgb,var(--totm-weather-color,#e0c67a) 92%, transparent) 0 3px,transparent 4px);background-size:54px 54px;opacity:.45;animation:totmLeafDrift 9s linear infinite}
 .totm-weather-chip{max-width:180px;overflow:hidden;text-overflow:ellipsis}
-@keyframes totmRainFall{from{transform:translate3d(0,-12%,0)}to{transform:translate3d(-6%,12%,0)}}
-@keyframes totmSnowFall{from{transform:translate3d(0,-12%,0)}to{transform:translate3d(-4%,12%,0)}}
+@keyframes totmRainFall{from{transform:translate3d(0,-12%,0)}to{transform:translate3d(-8%,14%,0)}}
+@keyframes totmSnowFall{from{transform:translate3d(0,-14%,0)}to{transform:translate3d(-6%,14%,0)}}
+@keyframes totmSnowFallFast{from{transform:translate3d(0,-18%,0)}to{transform:translate3d(-12%,18%,0)}}
 @keyframes totmFogDrift{from{transform:translateX(-2%)}to{transform:translateX(2%)}}
 @keyframes totmLeafDrift{0%{transform:translate3d(0,-10%,0)}100%{transform:translate3d(-8%,12%,0)}}
 .totm-main-row{display:flex;flex:1;min-height:0}
