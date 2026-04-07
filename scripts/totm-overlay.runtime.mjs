@@ -66,6 +66,52 @@ let PENDING_PIN_REFRESH_SCENE_ID=null;
 const HAS_FORM_APPLICATION=typeof globalThis.FormApplication==="function";
 const getThemeMeta=id=>UI_THEMES.find(t=>t.id===id)||UI_THEMES[0];
 const nextThemeId=id=>UI_THEMES[(Math.max(0,UI_THEMES.findIndex(t=>t.id===id))+1)%UI_THEMES.length].id;
+const hasSimpleTimekeeping=()=>!!game.modules.get("simple-timekeeping")?.active;
+const getSimpleTimekeepingApp=()=>hasSimpleTimekeeping()?ui.simpleTimekeeping||null:null;
+function getFallbackTimeText(){
+  const c=game.time?.components||{};
+  const hour=Number.isFinite(c.hour)?c.hour:0;
+  const minute=Number.isFinite(c.minute)?c.minute:0;
+  return `${String(hour).padStart(2,"0")}:${String(minute).padStart(2,"0")}`;
+}
+function getSimpleTimekeepingText(){
+  const app=getSimpleTimekeepingApp();
+  return {
+    short:String(app?.dateTimeText||getFallbackTimeText()).trim(),
+    full:String(app?.fullDateText||app?.dateTimeText||getFallbackTimeText()).trim()
+  };
+}
+function getSimpleTimekeepingConfig(){
+  if(!hasSimpleTimekeeping())return null;
+  try{return game.settings.get("simple-timekeeping","configuration")||null;}catch{return null;}
+}
+function normalizeWeatherEffect(effect,label=""){
+  const raw=String(effect||"").trim();
+  if(raw)return raw;
+  const txt=String(label||"").toLowerCase();
+  if(txt.includes("thunder")||txt.includes("storm"))return "rainStorm";
+  if(txt.includes("rain")||txt.includes("drizzle"))return "rain";
+  if(txt.includes("snow")||txt.includes("blizzard")||txt.includes("hail"))return "snow";
+  if(txt.includes("fog")||txt.includes("mist")||txt.includes("smog")||txt.includes("ash"))return "fog";
+  if(txt.includes("wind")||txt.includes("sand")||txt.includes("leaf"))return "leaves";
+  return "";
+}
+function getSimpleTimekeepingWeather(scene=game.scenes.viewed){
+  const cfg=getSimpleTimekeepingConfig();
+  const label=String(cfg?.weatherLabel||"").trim();
+  const color=String(cfg?.weatherColor||"").trim()||"#ffffff";
+  const effect=normalizeWeatherEffect(scene?.weather,label);
+  if(!label&&!effect)return null;
+  return {label,color,effect};
+}
+function getWeatherDisplayText(){
+  return getSimpleTimekeepingWeather()?.label||"";
+}
+function openSimpleTimekeeping(){
+  const app=getSimpleTimekeepingApp();
+  if(app?.render){app.render({force:true});return;}
+  ui.notifications.warn("Simple Timekeeping is not ready yet.");
+}
 const questPinSvg=(label,bg="#1d3557",fg="#fff")=>`data:image/svg+xml;utf8,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="96" height="96" viewBox="0 0 96 96"><circle cx="48" cy="48" r="42" fill="${bg}" stroke="rgba(255,255,255,.85)" stroke-width="6"/><text x="48" y="60" text-anchor="middle" font-size="52" font-family="Arial, sans-serif" font-weight="700" fill="${fg}">${label}</text></svg>`)}`;
 const getQuestPinImage=type=>type==="question"?questPinSvg("?","#8d5cf6"):type==="complete"?questPinSvg("âœ“","#2f9e44"):questPinSvg("!","#d97706");
 const getUserTargetColor=()=>game.user?.color?.css||game.user?.color?.toString?.()||String(game.user?.color||"#ff6a00");
@@ -421,8 +467,7 @@ function refreshUI(scene){
   const bgStyle=d.background?`background-image:url('${d.background}');background-position:${d.bgPosX??50}% ${d.bgPosY??50}%;background-size:${getBgSizeCss(d.bgZoom,d.bgStretch)};background-repeat:no-repeat`:"";
   const bgFadeClass=d.bgFadeAt&&Date.now()-d.bgFadeAt<BG_FADE_MS+150?"totm-bg-fade":"";
 
-  el.innerHTML=`
-    <div id="totm-bg-layer" class="${bgFadeClass}" style="${bgStyle}"></div>
+  el.innerHTML=`${renderWeatherLayer(scene)}
     <div class="totm-layout">
       <div class="totm-main-row">
         <div id="totm-actor-panel">
@@ -432,7 +477,7 @@ function refreshUI(scene){
         <div id="totm-main">
           ${isGM()?renderTopbar(d,scene):""}
           ${renderClockDock()}
-          <div id="totm-stage-wrap"><div id="totm-stage">${sceneImgs.join("")}</div><div id="totm-art-area"><div id="totm-art-display">${renderArt(d)}</div></div></div>
+          <div id="totm-stage-wrap"><div id="totm-bg-layer" class="${bgFadeClass}" style="${bgStyle}"></div><div id="totm-stage">${sceneImgs.join("")}</div><div id="totm-art-area"><div id="totm-art-display">${renderArt(d)}</div></div></div>
           ${d.narration?`<div id="totm-narration"><div class="totm-narration-inner"><div class="totm-narration-text">${d.narration}</div></div></div>`:""}
         </div>
       </div>
@@ -451,7 +496,15 @@ function renderArt(d){if(d.featuredArt)return`<img src="${d.featuredArt}"/>${d.f
 function renderEnemyBar(d){return renderEnemyBarModule({d,scene:game.scenes.viewed,deps:{getTargets,normalizeEnemyEntry,getEncounterActor,getRes,enemyTargetId,getEnemyTargetUsers,ENEMY_FADE_MS,isGM,renderBars}});}
 function renderClockDock(){if(!hasClockModule())return"";const clocks=getClockEntries(),canEdit=window.clockDatabase?.canUserEdit?.(game.user),controls=clock=>clock.editable?`<button class="totm-clock-delete" data-clock-act="delete" data-clock-id="${clock.id}" title="Delete Clock"><i class="fas fa-trash"></i></button>`:"";return`<div id="totm-clock-dock" class="${CLOCKS_OPEN?"is-open":"is-closed"}"><div class="totm-clock-dock-head"><div class="totm-clock-title"><i class="fas fa-clock"></i> Clocks</div><div class="totm-clock-dock-actions">${canEdit?`<button class="totm-btn-sm" id="totm-clock-add" title="Add Clock"><i class="fas fa-plus"></i></button>`:""}<div class="totm-clock-count">${clocks.length}</div></div></div>${clocks.length?`<div class="totm-clock-list">${clocks.map(clock=>clock.type==="tracker"?`<div class="totm-clock-entry ${clock.editable?"editable":""}" data-clock-id="${clock.id}" data-clock-type="${clock.type}" style="--clock-color:${clock.color};--clock-bg:${clock.backgroundColor};"><div class="totm-clock-main"><div class="totm-clock-meta"><span class="totm-clock-name">${clock.private?`<i class="fas fa-eye-slash"></i> `:""}${clock.name}</span><span class="totm-clock-value">${clock.value}/${clock.max}</span></div><div class="totm-clock-tracker">${clock.slashes.map(f=>`<span class="totm-clock-slash ${f?"filled":""}"></span>`).join("")}</div></div>${controls(clock)}</div>`:clock.type==="points"?`<div class="totm-clock-entry points ${clock.editable?"editable":""}" data-clock-id="${clock.id}" data-clock-type="${clock.type}" style="--clock-color:${clock.color};--clock-bg:${clock.backgroundColor};"><div class="totm-clock-main"><div class="totm-clock-meta"><span class="totm-clock-name">${clock.private?`<i class="fas fa-eye-slash"></i> `:""}${clock.name}</span><span class="totm-clock-points">${clock.value}</span></div></div>${controls(clock)}</div>`:`<div class="totm-clock-entry ${clock.editable?"editable":""}" data-clock-id="${clock.id}" data-clock-type="${clock.type}" style="--clock-color:${clock.color};--clock-bg:${clock.backgroundColor};--clock-pct:${Math.round(clock.ratio*100)}%;"><div class="totm-clock-main"><div class="totm-clock-ring"><div class="totm-clock-ring-inner">${clock.value}/${clock.max}</div></div><div class="totm-clock-meta"><span class="totm-clock-name">${clock.private?`<i class="fas fa-eye-slash"></i> `:""}${clock.name}</span></div></div>${controls(clock)}</div>`).join("")}</div>`:`<div class="totm-clock-empty">No clocks yet.</div>`}</div>`;}
 
-function renderTopbar(d,scene){return renderTopbarModule({d,scene,deps:{getThemeMeta,hasClockModule,getClockEntries}});}
+function renderTopbar(d,scene){return renderTopbarModule({d,scene,deps:{getThemeMeta,hasClockModule,getClockEntries,getTimeDisplayText:getSimpleTimekeepingText,getWeatherDisplayText}});}
+function renderWeatherLayer(scene){
+  const weather=getSimpleTimekeepingWeather(scene);
+  if(!weather)return `<div id="totm-weather-layer" class="is-clear"></div>`;
+  const effect=foundry.utils.escapeHTML(String(weather.effect||""));
+  const label=foundry.utils.escapeHTML(String(weather.label||""));
+  const color=String(weather.color||"#ffffff").replace(/"/g,"&quot;");
+  return `<div id="totm-weather-layer" data-weather-effect="${effect}" data-weather-label="${label}" style="--totm-weather-color:${color};"></div>`;
+}
 
 // â”€â”€ EVENTS â”€â”€
 function bindEvents(scene,d){
@@ -460,7 +513,7 @@ function bindEvents(scene,d){
   bindTotmHotbarDropZone(hotbarSlot);
   bindTotmHotbarUi(el,{refresh:()=>{const s=game.scenes.viewed;if(s&&isTOTM(s))refreshUI(s);}});
   if(isGM()){
-    bindSceneAdminEventsModule({el,scene,d,deps:{openMasterLibraryPicker,openBgPicker,openNpcPicker,openEncPicker,CLOCKS_OPEN_ref:()=>CLOCKS_OPEN,setCLOCKS_OPEN:v=>{CLOCKS_OPEN=v;},refreshUI,nextThemeId,getThemeMeta,saveData,emit,openBgCfg,clearCurrentBackgroundProps,addQuestPin,toggleGmPin,openGmPinCfg,clearEncounterState}});
+    bindSceneAdminEventsModule({el,scene,d,deps:{openMasterLibraryPicker,openBgPicker,openNpcPicker,openEncPicker,CLOCKS_OPEN_ref:()=>CLOCKS_OPEN,setCLOCKS_OPEN:v=>{CLOCKS_OPEN=v;},refreshUI,nextThemeId,getThemeMeta,saveData,emit,openBgCfg,clearCurrentBackgroundProps,addQuestPin,toggleGmPin,openGmPinCfg,clearEncounterState,openSimpleTimekeeping}});
   }
   el.querySelector("#totm-clock-add")?.addEventListener("click",e=>{e.stopPropagation();openClockCreateDialog();});
   el.querySelectorAll("[data-clock-act='delete']").forEach(btn=>btn.addEventListener("click",async e=>{e.stopPropagation();await deleteClock(e.currentTarget.dataset.clockId);refreshUI(scene);}));
@@ -1091,10 +1144,23 @@ Hooks.on("updateSetting",setting=>{if(setting.key==="global-progress-clocks.acti
 Hooks.on("getSceneContextOptions",(app,items)=>{items.push({name:"Toggle Theater of the Mind",icon:'<i class="fas fa-theater-masks"></i>',condition:()=>isGM(),callback:async el=>{const id=el.dataset?.sceneId||el.dataset?.documentId||el.dataset?.entryId||el.closest("[data-scene-id]")?.dataset?.sceneId||el.closest("[data-document-id]")?.dataset?.documentId||el.closest("[data-entry-id]")?.dataset?.entryId;const s=game.scenes.get(id);if(s)await toggleTOTM(s);}});});
 async function toggleTOTM(s){if(isTOTM(s)){const d=getData(s);await setTargets(s,[],game.user,d);if(isGM()){await pruneEnemyTokenDocs(s,{...d,enemies:[]});await prunePlayerTokenDocs(s,{...d,actors:[]});}await unsetF(s,FLAG_TOTM);await unsetF(s,FLAG_DATA);ui.notifications.info("TOTM disabled.");if(s.id===game.scenes.viewed?.id)deactivate();}else{await setF(s,FLAG_TOTM,true);const d=defData();if(s.background?.src)d.background=s.background.src;await setF(s,FLAG_DATA,d);ui.notifications.info("TOTM enabled.");if(s.id===game.scenes.viewed?.id)activate(s);}emit();}
 Hooks.on("canvasReady",async c=>{const s=c.scene||game.scenes.viewed;if(s&&isTOTM(s)){const d=getData(s);const changedEnemies=await ensureEnemyTokenDocs(s,d),changedPlayers=await ensurePlayerTokenDocs(s,d);if(changedEnemies||changedPlayers)await saveData(s,d);activate(s);}else deactivate();});
-Hooks.on("updateScene",(s,ch)=>{if(!ch?.flags?.[MODULE_ID])return;if(s.id===game.scenes.viewed?.id){if(isTOTM(s)){if(LOCAL_PIN_DRAG_COUNT>0)PENDING_PIN_REFRESH_SCENE_ID=s.id;else activate(s);}else deactivate();}});
+Hooks.on("updateScene",(s,ch)=>{
+  if(s.id!==game.scenes.viewed?.id)return;
+  if(ch?.flags?.[MODULE_ID]){
+    if(isTOTM(s)){if(LOCAL_PIN_DRAG_COUNT>0)PENDING_PIN_REFRESH_SCENE_ID=s.id;else activate(s);}else deactivate();
+    return;
+  }
+  if("weather" in (ch||{})){
+    const viewed=game.scenes.viewed;
+    if(viewed&&isTOTM(viewed)&&document.body.classList.contains("totm-active"))requestSceneRefresh(viewed);
+  }
+});
 Hooks.on("updateUser",_u=>{const s=game.scenes.viewed;if(s&&isTOTM(s))requestSceneRefresh(s);});
 Hooks.on("targetToken",(_user,_token,_targeted)=>{const s=game.scenes.viewed;if(s&&document.body.classList.contains("totm-active")&&isTOTM(s))requestSceneRefresh(s);});
 Hooks.on("renderHotbar",()=>{const s=game.scenes.viewed;if(s&&document.body.classList.contains("totm-active")&&isTOTM(s))requestSceneRefresh(s);});
+Hooks.on("updateWorldTime",()=>{const s=game.scenes.viewed;if(s&&document.body.classList.contains("totm-active")&&isTOTM(s))requestSceneRefresh(s);});
+Hooks.on("pauseGame",()=>{const s=game.scenes.viewed;if(s&&document.body.classList.contains("totm-active")&&isTOTM(s))requestSceneRefresh(s);});
+Hooks.on("updateSetting",setting=>{if(setting.key==="simple-timekeeping.configuration"){const s=game.scenes.viewed;if(s&&document.body.classList.contains("totm-active")&&isTOTM(s))requestSceneRefresh(s);}});
 Hooks.once("init",()=>{console.log(`${MODULE_ID} | v8`);regSettings();});
 Hooks.once("ready",async()=>{game.socket.on(`module.${MODULE_ID}`,onSock);injectUI();window.addEventListener("resize",()=>{if(document.body.classList.contains("totm-active")){fitSB();syncHotbarPosition();}});const s=game.scenes.viewed;if(s&&isTOTM(s)){const d=getData(s);const changedEnemies=await ensureEnemyTokenDocs(s,d),changedPlayers=await ensurePlayerTokenDocs(s,d);if(changedEnemies||changedPlayers)await saveData(s,d);activate(s);}});
 Hooks.once("ready",()=>{window.TOTMOverlay={isTOTM:s=>isTOTM(s||game.scenes.viewed),toggle:async()=>{const s=game.scenes.viewed;if(s)await toggleTOTM(s);}};});
