@@ -4,6 +4,19 @@ body.totm-active #board{visibility:hidden!important;pointer-events:none!importan
 #totm-ui{display:none}body.totm-active #totm-ui{display:flex;position:fixed;top:0;left:0;bottom:0;right:305px;z-index:50;background:var(--totm-bg);font-family:var(--totm-font);color:var(--totm-text);overflow:hidden;transition:right 300ms ease}
 #totm-ui *{box-sizing:border-box}
 #totm-ui::before,#totm-ui::after{content:none}
+body.totm-active #totm-ui.totm-soft-refresh .totm-actor-card,
+body.totm-active #totm-ui.totm-soft-refresh .totm-enemy-card,
+body.totm-active #totm-ui.totm-soft-refresh .totm-scene-img,
+body.totm-active #totm-ui.totm-soft-refresh #totm-bg-layer,
+body.totm-active #totm-ui.totm-soft-refresh #totm-art-display img,
+body.totm-active #totm-ui.totm-soft-refresh .totm-resource-fill,
+body.totm-active #totm-ui.totm-soft-refresh .totm-card-bg,
+body.totm-active #totm-ui.totm-soft-refresh .totm-actor-status-bar,
+body.totm-active #totm-ui.totm-soft-refresh .totm-actor-btns,
+body.totm-active #totm-ui.totm-soft-refresh .totm-enemy-actions,
+body.totm-active #totm-ui.totm-soft-refresh .totm-tb-btn,
+body.totm-active #totm-ui.totm-soft-refresh .totm-btn-sm,
+body.totm-active #totm-ui.totm-soft-refresh #totm-clock-dock{animation:none!important;transition:none!important}
 body.totm-active #hotbar{opacity:0!important;pointer-events:none!important}
 
 #totm-ui[data-style="classic"]{--totm-font:"Signika","Palatino Linotype",serif;--totm-bg:#07070c;--totm-panel:rgba(10,10,18,.94);--totm-panel-border:rgba(180,160,110,.2);--totm-gold:#c9a84c;--totm-gold-dim:rgba(201,168,76,.3);--totm-gold-glow:rgba(201,168,76,.12);--totm-text:#e8e4dc;--totm-text-dim:rgba(232,228,220,.5);--totm-text-faint:rgba(232,228,220,.25);--totm-highlight:#e2c87e;--totm-danger:#a0392e;--totm-radius:5px;--totm-bg-accent:radial-gradient(circle at top,rgba(255,255,255,.05),transparent 45%)}

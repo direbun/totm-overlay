@@ -1,7 +1,7 @@
 export function renderPlayerCards({d,scene,deps}){
   const {isGM,getConds,MODULE_ID,getActorStatus,isActorTargeted,getRes,getImg,getFabulaPoints,rPath,renderBars,canControlActorPin}=deps;
   const actors=isGM()?d.actors:d.actors.filter(a=>a.visible!==false);
-  const inCombat=!!(d.enemies||[]).length;
+  const inCombat=!!d.combatActive;
   if(!actors.length)return `<div class="totm-actor-empty"><i class="fas fa-users"></i><span>Drag players from sidebar</span></div>`;
   const sp=game.settings.get(MODULE_ID,"subtitlePath");
   const conds=getConds();

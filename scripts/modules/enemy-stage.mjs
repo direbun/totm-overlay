@@ -11,7 +11,8 @@ export function buildStageSceneImages({d,scene,deps}){
     ENEMY_FADE_MS,
     enemyTargetId,
     getQuestPinImage,
-    getStageActorImage
+    getStageActorImage,
+    getStageActorLayout
   }=deps;
 
   const sceneImgs=[];
@@ -26,10 +27,13 @@ export function buildStageSceneImages({d,scene,deps}){
     const img=p.image||getQuestPinImage?.(p.type||"quest");
     sceneImgs.push(`<div class="totm-scene-img totm-scene-quest" data-qidx="${i}" data-quest-id="${p.id||""}" style="left:${p.posX??50}%;top:${p.posY??50}%;transform:translate(-50%,-50%) scale(${(p.scale??100)/100});"><img src="${img}" alt="${p.label||"Quest"}"/></div>`);
   });
-  (d.boardActors||[]).forEach((entry,i)=>{
-    const img=getStageActorImage(entry,d,{inCombat:!!(d.enemies||[]).length});
-    sceneImgs.push(`<div class="totm-scene-img totm-stage-actor" data-baidx="${i}" data-board-actor-id="${entry.id||""}" data-actor-id="${entry.actorId||""}" style="left:${entry.posX??50}%;top:${entry.posY??58}%;transform:translate(-50%,-50%) scale(${(entry.scale??100)/100});"><img src="${img}" alt="${entry.name||"Character"}"/></div>`);
-  });
+  if(d.boardActorsVisible!==false){
+    (d.boardActors||[]).forEach((entry,i)=>{
+      const img=getStageActorImage(entry,d,{inCombat:!!d.combatActive});
+      const layout=getStageActorLayout(entry,{inCombat:!!d.combatActive});
+      sceneImgs.push(`<div class="totm-scene-img totm-stage-actor" data-baidx="${i}" data-board-actor-id="${entry.id||""}" data-actor-id="${entry.actorId||""}" style="left:${layout.posX}%;top:${layout.posY}%;transform:translate(-50%,-50%) scale(${layout.scale/100});"><img src="${img}" alt="${entry.name||"Character"}"/></div>`);
+    });
+  }
   (d.actors||[]).forEach((a,i)=>{
     if(!a.pinVisible)return;
     const pinImg=getPinImage(a),pinSize=Number(a.pinSize||64),pinColor=getActorPinColor(a.id);
@@ -56,7 +60,7 @@ export function buildStageSceneImages({d,scene,deps}){
 export function renderEnemyBar({d,scene,deps}){
   const {getTargets,normalizeEnemyEntry,getEncounterActor,getRes,enemyTargetId,getEnemyTargetUsers,ENEMY_FADE_MS,isGM}=deps;
   const enemies=d.enemies||[],targets=scene?getTargets(scene):[];
-  if(!enemies.length)return "";
+  if(!d.combatActive||!enemies.length)return "";
   const now=Date.now();
   return `<div id="totm-enemy-wrap"><div id="totm-enemy-tools"><button class="totm-tb-btn" data-target-act="random"><i class="fas fa-dice"></i> Random Target</button><button class="totm-tb-btn" data-target-act="next"><i class="fas fa-crosshairs"></i> T Target</button><button class="totm-tb-btn" data-target-act="clear"><i class="fas fa-ban"></i> Clear</button></div><div id="totm-enemy-bar">${enemies.map((e,i)=>{normalizeEnemyEntry(e);const a=getEncounterActor(e,scene);const res=getRes(e,scene,{enemy:true,auto:true}).filter(r=>r.label==="HP"||r.label==="MP");const img=a?.prototypeToken?.texture?.src||a?.img||e.img||"icons/svg/mystery-man.svg";const dead=(res.find(r=>r.label==="HP")?.value??1)<=0,targeted=targets.includes(enemyTargetId(e)),targeters=getEnemyTargetUsers(e,scene);const fadeClass=e.transitionState&&now-(e.transitionAt||0)<ENEMY_FADE_MS+150?`is-${e.transitionState}`:"";return `<div class="totm-enemy-card ${dead?"enemy-dead":""} ${targeted?"enemy-targeted":""} ${fadeClass}" data-eidx="${i}" data-target-id="${enemyTargetId(e)}"><div class="totm-card-bg" style="background-image:url('${img}')"></div><div class="totm-card-overlay"></div><div class="totm-enemy-targeters">${targeters.map(t=>`<span class="totm-enemy-targeter" title="${t.name}" style="--targeter-color:${t.color};background-image:url('${t.img}')"></span>`).join("")}</div><div class="totm-enemy-actions"><button data-eact="target" class="${targeted?"active-target":""}" title="Target"><i class="fas fa-crosshairs"></i></button>${isGM()?`<button data-eact="remove" title="Remove"><i class="fas fa-times"></i></button>`:""}</div><div class="totm-card-content"><div class="totm-actor-name">${e.name}</div>${deps.renderBars(res,{kind:"enemy"})}</div></div>`;}).join("")}</div></div>`;
 }
@@ -402,6 +406,7 @@ export function bindEnemyStageEvents({el,scene,d,deps}){
     });
   });
   el.querySelectorAll(".totm-scene-enemy").forEach(img=>img.addEventListener("click",async e=>{
+    if(!d.combatActive)return;
     const enemyId=e.currentTarget?.dataset?.targetId;
     if(enemyId)await toggleEnemyTarget(scene,d,enemyId);
   }));
