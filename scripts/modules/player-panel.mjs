@@ -128,6 +128,14 @@ export function bindPlayerPanelEvents({el,scene,d,deps}){
   if(isGM()){
     const list=el.querySelector("#totm-actor-list");
     if(list){
+      list.querySelectorAll(".totm-actor-card").forEach(card=>card.addEventListener("dragstart",e=>{
+        const actorId=d.actors?.[+card.dataset.idx]?.id;
+        if(!actorId)return;
+        const actor=game.actors.get(actorId);
+        if(!actor)return;
+        e.dataTransfer?.setData("text/plain",JSON.stringify({type:"Actor",uuid:actor.uuid}));
+        if(e.dataTransfer)e.dataTransfer.effectAllowed="copy";
+      }));
       list.addEventListener("dragover",e=>{e.preventDefault();list.classList.add("totm-drag-over");});
       list.addEventListener("dragleave",()=>list.classList.remove("totm-drag-over"));
       list.addEventListener("drop",async e=>{

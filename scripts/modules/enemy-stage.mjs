@@ -10,7 +10,8 @@ export function buildStageSceneImages({d,scene,deps}){
     getEncounterActor,
     ENEMY_FADE_MS,
     enemyTargetId,
-    getQuestPinImage
+    getQuestPinImage,
+    getStageActorImage
   }=deps;
 
   const sceneImgs=[];
@@ -24,6 +25,10 @@ export function buildStageSceneImages({d,scene,deps}){
   backgroundQuestPins.forEach((p,i)=>{
     const img=p.image||getQuestPinImage?.(p.type||"quest");
     sceneImgs.push(`<div class="totm-scene-img totm-scene-quest" data-qidx="${i}" data-quest-id="${p.id||""}" style="left:${p.posX??50}%;top:${p.posY??50}%;transform:translate(-50%,-50%) scale(${(p.scale??100)/100});"><img src="${img}" alt="${p.label||"Quest"}"/></div>`);
+  });
+  (d.boardActors||[]).forEach((entry,i)=>{
+    const img=getStageActorImage(entry,d,{inCombat:!!(d.enemies||[]).length});
+    sceneImgs.push(`<div class="totm-scene-img totm-stage-actor" data-baidx="${i}" data-board-actor-id="${entry.id||""}" data-actor-id="${entry.actorId||""}" style="left:${entry.posX??50}%;top:${entry.posY??58}%;transform:translate(-50%,-50%) scale(${(entry.scale??100)/100});"><img src="${img}" alt="${entry.name||"Character"}"/></div>`);
   });
   (d.actors||[]).forEach((a,i)=>{
     if(!a.pinVisible)return;
@@ -57,7 +62,7 @@ export function renderEnemyBar({d,scene,deps}){
 }
 
 export function bindEnemyStageEvents({el,scene,d,deps}){
-  const {isGM,setTargets,getTargets,targetRandomEnemy,targetNextEnemy,toggleEnemyTarget,getEncounterActor,pruneEnemyTokenDocs,saveData,emit,refreshUI,makeEnemyEntry,ensureEnemyTokenDocs,openDragPos,getQuestPinImage}=deps;
+  const {isGM,setTargets,getTargets,targetRandomEnemy,targetNextEnemy,toggleEnemyTarget,getEncounterActor,pruneEnemyTokenDocs,saveData,emit,refreshUI,makeEnemyEntry,ensureEnemyTokenDocs,openDragPos,getQuestPinImage,addStageActor,openStageActorCfg,removeStageActor,moveStageActor,moveStageActorToEdge}=deps;
   el.querySelector("#totm-enemy-tools")?.addEventListener("click",async e=>{
     const btn=e.target.closest("[data-target-act]");
     if(!btn)return;
@@ -324,6 +329,13 @@ export function bindEnemyStageEvents({el,scene,d,deps}){
       if(data?.type === "Actor"){
         const actor = await fromUuid(data.uuid);
         if(!actor) return;
+        if(actor.type === "character"){
+          await addStageActor(scene, d, actor, {
+            posX: Number.isFinite(posX) ? posX : undefined,
+            posY: Number.isFinite(posY) ? posY : undefined
+          });
+          return;
+        }
         await addEncounterEnemy(actor, {
           posX: Number.isFinite(posX) ? posX : undefined,
           posY: Number.isFinite(posY) ? posY : undefined
@@ -440,6 +452,42 @@ export function bindEnemyStageEvents({el,scene,d,deps}){
     }, async () => {
       await deleteScenePropById(prop.id);
     });
+  }));
+  el.querySelectorAll(".totm-stage-actor").forEach(img=>img.addEventListener("dblclick",e=>{
+    const idx=+e.currentTarget?.dataset?.baidx;
+    const entry=d.boardActors?.[idx];
+    const actor=entry?game.actors.get(entry.actorId):null;
+    actor?.sheet?.render?.(true);
+  }));
+  el.querySelectorAll(".totm-stage-actor").forEach(img=>img.addEventListener("contextmenu",async e=>{
+    e.preventDefault();
+    const idx=+e.currentTarget?.dataset?.baidx;
+    if(!Number.isInteger(idx)||idx<0)return;
+    const entry=d.boardActors?.[idx];
+    if(!entry)return;
+    if(e.shiftKey){
+      await moveStageActorToEdge(scene,d,idx,"front");
+      return;
+    }
+    if(e.altKey){
+      await moveStageActorToEdge(scene,d,idx,"back");
+      return;
+    }
+    openStageActorCfg?.(scene,d,idx);
+  }));
+  el.querySelectorAll(".totm-stage-actor").forEach(img=>img.addEventListener("click",async e=>{
+    if(!e.shiftKey&&!e.altKey)return;
+    e.preventDefault();
+    e.stopPropagation();
+    const idx=+e.currentTarget?.dataset?.baidx;
+    if(!Number.isInteger(idx)||idx<0)return;
+    if(e.shiftKey){
+      await moveStageActor(scene,d,idx,1);
+      return;
+    }
+    if(e.altKey){
+      await moveStageActor(scene,d,idx,-1);
+    }
   }));
   el.querySelectorAll(".totm-scene-quest").forEach(img=>img.addEventListener("contextmenu",e=>{
     e.preventDefault();

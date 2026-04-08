@@ -6,7 +6,7 @@ import { renderTopbar as renderTopbarModule, bindSceneAdminEvents as bindSceneAd
 const MODULE_ID="totm-overlay",FLAG_TOTM="isTOTM",FLAG_DATA="totmData",FLAG_TARGETS="userTargets",FLAG_PROXY="proxyToken",FLAG_PLAYER_PROXY="playerProxyToken",FLAG_USER_AFK="afkActors";
 const loc=k=>game.i18n.localize(`TOTM.${k}`),isGM=()=>game.user.isGM;
 const getF=(s,k)=>s?.getFlag(MODULE_ID,k),setF=async(s,k,v)=>s?.setFlag(MODULE_ID,k,v),unsetF=async(s,k)=>s?.unsetFlag(MODULE_ID,k);
-const defData=()=>({background:"",bgPosX:50,bgPosY:50,bgZoom:100,bgStretch:false,featuredArt:"",featuredCaption:"",narration:"",style:"classic",actors:[],backgrounds:[],npcs:[],props:[],propsByBackground:{},questPins:[],questPinsByBackground:{},enemies:[],encounters:[],shared:false,preEncounterView:null,gmPin:{visible:false,image:"",size:64,posX:50,posY:50}});
+const defData=()=>({background:"",bgPosX:50,bgPosY:50,bgZoom:100,bgStretch:false,featuredArt:"",featuredCaption:"",narration:"",style:"classic",actors:[],backgrounds:[],npcs:[],boardActors:[],props:[],propsByBackground:{},questPins:[],questPinsByBackground:{},enemies:[],encounters:[],shared:false,preEncounterView:null,gmPin:{visible:false,image:"",size:64,posX:50,posY:50}});
 const getData=s=>Object.assign(defData(),getF(s,FLAG_DATA)||{});
 const saveData=async(s,d)=>setF(s,FLAG_DATA,JSON.parse(JSON.stringify(d)));
 const emit=()=>game.socket.emit(`module.${MODULE_ID}`,{action:"refresh"});
@@ -267,6 +267,33 @@ function openDamageAnimConfig(){const rows=damageAnimRows();new Dialog({title:"T
 function openClockCreateDialog(){if(!hasClockModule())return;const db=window.clockDatabase;if(!db.canUserEdit(game.user)){ui.notifications.warn("You do not have permission to create clocks.");return;}new Dialog({title:"Add Clock",content:`<form><div class="form-group"><label>Name</label><input name="name" placeholder="Danger Clock"/></div><div class="form-group"><label>Type</label><select name="type"><option value="clock">Clock</option><option value="tracker">Tracker</option><option value="points">Points</option></select></div><div class="form-group"><label>Max</label><input type="number" name="max" min="1" max="99" step="1" value="6"/></div><div class="form-group"><label><input type="checkbox" name="private"/> Private</label></div></form>`,buttons:{add:{icon:'<i class="fas fa-plus"></i>',label:"Add",callback:async h=>{const type=h.find("[name=type]").val(),maxRaw=+h.find("[name=max]").val(),max=Math.max(1,Math.min(type==="points"?99:type==="tracker"?12:128,Number.isFinite(maxRaw)?maxRaw:6));db.addClock({name:h.find("[name=name]").val().trim()||"New Clock",type,max,private:h.find("[name=private]").is(":checked")});CLOCKS_OPEN=true;const s=game.scenes.viewed;if(s&&isTOTM(s))refreshUI(s);}}},default:"add"}).render(true);}
 function getImg(a){const src=game.settings.get(MODULE_ID,"portraitSource"),ac=game.actors.get(a.id);if(!ac)return a.img||"icons/svg/mystery-man.svg";return src==="token"?(ac.prototypeToken?.texture?.src||ac.img||"icons/svg/mystery-man.svg"):(ac.img||"icons/svg/mystery-man.svg");}
 function makeEntry(actor,idx=0){const p=PRESETS[game.settings.get(MODULE_ID,"systemPreset")];const res=[];if(p?.hp)res.push({label:"HP",icon:"fas fa-heart",path:p.hp,maxPath:p.hpM,color:"res-hp"});return{id:actor.id,name:actor.name,img:actor.prototypeToken?.texture?.src||actor.img||"icons/svg/mystery-man.svg",artImg:actor.img||"icons/svg/mystery-man.svg",visible:true,highlighted:false,bgOffsetX:50,bgOffsetY:20,bgScale:150,bgAutoFit:false,combatImg:"",combatOffsetX:50,combatOffsetY:20,combatScale:150,combatAutoFit:false,status:"",conditions:[],resources:res,pinVisible:false,pinImg:actor.img||actor.prototypeToken?.texture?.src||"icons/svg/mystery-man.svg",pinSize:64,pinX:50,pinY:50};}
+function getStageActorDefaultImage(actorOrId){
+  const actor=typeof actorOrId==="string"?game.actors.get(actorOrId):actorOrId;
+  if(!actor)return"icons/svg/mystery-man.svg";
+  return actor.prototypeToken?.texture?.src||actor.img||"icons/svg/mystery-man.svg";
+}
+function makeStageActorEntry(actor,overrides={}){
+  const linked=actor?makeEntry(actor):null;
+  return foundry.utils.mergeObject({
+    id:foundry.utils.randomID(),
+    kind:"board-actor",
+    actorId:actor?.id||"",
+    name:actor?.name||"Character",
+    image:getStageActorDefaultImage(actor),
+    combatImage:linked?.combatImg||"",
+    posX:50,
+    posY:58,
+    scale:100
+  },overrides,{inplace:false,overwrite:true});
+}
+function getStageActorImage(entry,d,{inCombat=false}={}){
+  const actor=game.actors.get(entry?.actorId);
+  const linked=d?.actors?.find?.(a=>a.id===entry?.actorId);
+  if(inCombat){
+    return entry?.combatImage||linked?.combatImg||entry?.image||getStageActorDefaultImage(actor);
+  }
+  return entry?.image||linked?.artImg||linked?.img||getStageActorDefaultImage(actor);
+}
 const makeEnemyInstanceId=()=>foundry.utils.randomID();
 const enemyTargetId=e=>e?.instanceId||e?.id;
 function makeEnemyEntry(actor,overrides={}){const entry=makeEntry(actor);return foundry.utils.mergeObject({instanceId:makeEnemyInstanceId(),id:actor.id,name:actor.name,image:actor.prototypeToken?.texture?.src||actor.img||"icons/svg/mystery-man.svg",posX:30+Math.random()*40,posY:55+Math.random()*20,scale:100,tokenId:null,resources:entry.resources,phaseEnabled:false,nextFormId:"",nextFormName:"",nextFormImage:"",nextPosX:null,nextPosY:null,nextScale:null,phaseUsed:false,transitionState:"",transitionAt:0,pendingPhasePrompt:false},overrides,{inplace:false,overwrite:true});}
@@ -347,6 +374,69 @@ async function clearCurrentBackgroundProps(scene,d){
   emit();
   refreshUI(scene);
   ui.notifications.warn("Cleared all props on the current background.");
+}
+function reorderStageActorEntries(d,fromIndex,toIndex){
+  if(!Array.isArray(d.boardActors))d.boardActors=[];
+  if(fromIndex===toIndex)return null;
+  const maxIndex=d.boardActors.length-1;
+  if(fromIndex<0||fromIndex>maxIndex||toIndex<0||toIndex>maxIndex)return null;
+  const [entry]=d.boardActors.splice(fromIndex,1);
+  if(!entry)return null;
+  d.boardActors.splice(toIndex,0,entry);
+  return entry;
+}
+async function moveStageActor(scene,d,idx,delta){
+  const targetIdx=Math.max(0,Math.min((d.boardActors?.length||1)-1,idx+delta));
+  if(targetIdx===idx)return;
+  reorderStageActorEntries(d,idx,targetIdx);
+  await saveData(scene,d);
+  emit();
+  refreshUI(scene);
+}
+async function moveStageActorToEdge(scene,d,idx,edge="front"){
+  if(!Array.isArray(d.boardActors)||!d.boardActors[idx])return;
+  const targetIdx=edge==="back"?0:d.boardActors.length-1;
+  if(targetIdx===idx)return;
+  reorderStageActorEntries(d,idx,targetIdx);
+  await saveData(scene,d);
+  emit();
+  refreshUI(scene);
+}
+async function removeStageActor(scene,d,entryId){
+  if(!entryId||!Array.isArray(d.boardActors))return;
+  const idx=d.boardActors.findIndex(entry=>entry?.id===entryId);
+  if(idx<0)return;
+  d.boardActors.splice(idx,1);
+  await saveData(scene,d);
+  emit();
+  refreshUI(scene);
+}
+async function addStageActor(scene,d,actor,opts={}){
+  if(!actor||actor.type!=="character")return null;
+  if(!Array.isArray(d.boardActors))d.boardActors=[];
+  const existing=d.boardActors.find(entry=>entry?.actorId===actor.id);
+  if(existing){
+    if(Number.isFinite(opts.posX))existing.posX=opts.posX;
+    if(Number.isFinite(opts.posY))existing.posY=opts.posY;
+    await saveData(scene,d);
+    emit();
+    refreshUI(scene);
+    ui.notifications.info(`${actor.name} is already on the board.`);
+    return existing;
+  }
+  const entry=makeStageActorEntry(actor,{posX:Number.isFinite(opts.posX)?opts.posX:50,posY:Number.isFinite(opts.posY)?opts.posY:58,scale:Number.isFinite(opts.scale)?opts.scale:100});
+  d.boardActors.push(entry);
+  await saveData(scene,d);
+  emit();
+  refreshUI(scene);
+  setTimeout(()=>openDragPos(entry,scene,d,async()=>{
+    await saveData(scene,d);
+    emit();
+    refreshUI(scene);
+  },async()=>{
+    await removeStageActor(scene,d,entry.id);
+  }),30);
+  return entry;
 }
 async function addQuestPin(scene,d){
   const key=String(d.background||"");
@@ -529,7 +619,7 @@ function refreshUI(scene){
   el.style.setProperty("--totm-target-color",getUserTargetColor());
   if(!isGM()&&!d.shared){el.innerHTML=`<div style="display:flex;align-items:center;justify-content:center;width:100%;height:100%;color:var(--totm-text-faint);font-size:14px;">The GM is preparingâ€¦</div>`;return;}
 
-  const sceneImgs=buildStageSceneImagesModule({d,scene,deps:{getPinImage,canControlActorPin,getActorPinColor,getGmPinColor,canControlGmPin,getTargets,normalizeEnemyEntry,getEncounterActor,ENEMY_FADE_MS,enemyTargetId,getQuestPinImage}});
+  const sceneImgs=buildStageSceneImagesModule({d,scene,deps:{getPinImage,canControlActorPin,getActorPinColor,getGmPinColor,canControlGmPin,getTargets,normalizeEnemyEntry,getEncounterActor,ENEMY_FADE_MS,enemyTargetId,getQuestPinImage,getStageActorImage}});
 
   // Background with position/zoom
   const bgStyle=d.background?`background-image:url('${d.background}');background-position:${d.bgPosX??50}% ${d.bgPosY??50}%;background-size:${getBgSizeCss(d.bgZoom,d.bgStretch)};background-repeat:no-repeat`:"";
@@ -572,7 +662,7 @@ function bindEvents(scene,d){
   bindTotmHotbarDropZone(hotbarSlot);
     bindTotmHotbarUi(el,{refresh:()=>{const s=game.scenes.viewed;if(s&&isTOTM(s))refreshUI(s);}});
     if(isGM()){
-      bindSceneAdminEventsModule({el,scene,d,deps:{openMasterLibraryPicker,openBgPicker,openNpcPicker,openEncPicker,CLOCKS_OPEN_ref:()=>CLOCKS_OPEN,setCLOCKS_OPEN:v=>{CLOCKS_OPEN=v;},refreshUI,openBgCfg,clearCurrentBackgroundProps,addQuestPin,toggleGmPin,openGmPinCfg,clearEncounterState,openSimpleTimekeeping}});
+      bindSceneAdminEventsModule({el,scene,d,deps:{openMasterLibraryPicker,openBgPicker,openNpcPicker,openEncPicker,CLOCKS_OPEN_ref:()=>CLOCKS_OPEN,setCLOCKS_OPEN:v=>{CLOCKS_OPEN=v;},refreshUI,openBgCfg,clearCurrentBackgroundProps,addQuestPin,toggleGmPin,openGmPinCfg,clearEncounterState,openSimpleTimekeeping,saveData,emit}});
     }
     mountSimpleTimekeepingIntoTotm();
     el.querySelector("#totm-clock-add")?.addEventListener("click",e=>{e.stopPropagation();openClockCreateDialog();});
@@ -580,7 +670,7 @@ function bindEvents(scene,d){
   el.querySelector("#totm-clock-dock")?.addEventListener("click",async e=>{const entry=e.target.closest("[data-clock-id]");if(!entry)return;await stepClock(entry.dataset.clockId,1);refreshUI(scene);});
   el.querySelector("#totm-clock-dock")?.addEventListener("contextmenu",async e=>{const entry=e.target.closest("[data-clock-id]");if(!entry)return;e.preventDefault();await stepClock(entry.dataset.clockId,-1);refreshUI(scene);});
   bindPlayerPanelEventsModule({el,scene,d,deps:{isGM,saveData,emit,refreshUI,targetRandomPlayer,pickActor,togglePlayerTarget,toggleActorPin,openActorPinCfg,openActorCfg,togCondDD,makeEntry,toggleActorAfkStatus}});
-  bindEnemyStageEventsModule({el,scene,d,deps:{isGM,setTargets,getTargets,targetRandomEnemy,targetNextEnemy,toggleEnemyTarget,getEncounterActor,pruneEnemyTokenDocs,saveData,emit,refreshUI,makeEnemyEntry,ensureEnemyTokenDocs,openDragPos,getQuestPinImage}});
+  bindEnemyStageEventsModule({el,scene,d,deps:{isGM,setTargets,getTargets,targetRandomEnemy,targetNextEnemy,toggleEnemyTarget,getEncounterActor,pruneEnemyTokenDocs,saveData,emit,refreshUI,makeEnemyEntry,ensureEnemyTokenDocs,openDragPos,getQuestPinImage,addStageActor,openStageActorCfg,removeStageActor,moveStageActor,moveStageActorToEdge}});
 
   document.addEventListener("click",e=>{document.querySelectorAll(".totm-cond-dropdown").forEach(x=>x.remove());if(!e.target.closest(".totm-bg-dropdown")&&!e.target.closest(".totm-tb-btn"))el.querySelectorAll(".totm-bg-dropdown").forEach(x=>x.style.display="none");});
 }
@@ -982,17 +1072,73 @@ function openBgMgr(scene,d){if(!d.backgrounds)d.backgrounds=[];new Dialog({title
 function openNpcMgr(scene,d){if(!d.npcs)d.npcs=[];new Dialog({title:"NPC Setup",content:`<div style="max-height:400px;overflow-y:auto;"><div id="ml"></div></div><hr style="border-color:#444;margin:8px 0;"><button type="button" id="ma" style="width:100%;padding:6px;cursor:pointer;"><i class="fas fa-plus"></i> Add NPC</button>`,buttons:{done:{icon:'<i class="fas fa-check"></i>',label:"Done",callback:async()=>{await saveData(scene,d);emit();refreshUI(scene);}}},default:"done",render:h=>{function openNpcDetails(existing,p,onSave){const name=existing?.name||p.split("/").pop().replace(/\.\w+$/,"");new Dialog({title:"NPC Details",content:`<form><div class="form-group"><label>Name</label><input name="n" value="${name}"/></div><div class="form-group"><label>Category</label><input name="c" value="${existing?.category||""}" placeholder="Shopkeeper"/></div><div class="form-group"><label>Tags</label><input name="tags" value="${normalizeTagString(existing?.tags)}" placeholder="town, healer, ally"/></div><div class="form-group"><label><input type="checkbox" name="visible" ${existing?.visible?"checked":""}/> Visible on stage</label></div></form>`,buttons:{ok:{icon:'<i class="fas fa-check"></i>',label:"Save",callback:h2=>onSave({...existing,name:h2.find("[name=n]").val().trim()||name,image:p,category:h2.find("[name=c]").val().trim(),tags:normalizeTagString(h2.find("[name=tags]").val()),visible:h2.find("[name=visible]").is(":checked")})}},default:"ok"}).render(true);}
     function r(){h.find("#ml").html(d.npcs.map((n,i)=>`<div style="display:flex;align-items:center;gap:6px;padding:4px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.06);border-radius:4px;margin-bottom:3px;"><div style="width:40px;height:40px;border-radius:4px;background:url('${n.image}') center/cover;flex-shrink:0;"></div><div style="flex:1;"><div style="font-size:11px;font-weight:600;">${n.name}</div><div style="font-size:9px;color:#888;">${n.category||"Untagged"}${n.tags?` Â· ${normalizeTagString(n.tags)}`:""}</div></div><button type="button" data-meta="${i}" style="background:none;border:none;color:#aaa;cursor:pointer;"><i class="fas fa-pen"></i></button><button type="button" data-pos="${i}" style="background:none;border:none;color:#aaa;cursor:pointer;"><i class="fas fa-arrows-alt"></i></button><button type="button" data-d="${i}" style="background:none;border:none;color:#a05050;cursor:pointer;"><i class="fas fa-trash"></i></button></div>`).join("")||'<div style="padding:12px;text-align:center;color:#888;">No NPCs</div>');h.find("[data-d]").on("click",function(){d.npcs.splice(+this.dataset.d,1);r();});h.find("[data-pos]").on("click",function(){openDragPos(d.npcs[+this.dataset.pos],scene,d,()=>r());});h.find("[data-meta]").on("click",function(){const i=+this.dataset.meta;const npc=d.npcs[i];openNpcDetails(npc,npc.image,upd=>{d.npcs[i]={...npc,...upd};r();});});}
     r();h.find("#ma").on("click",()=>{new FilePicker({type:"image",callback:p=>{const baseName=p.split("/").pop().replace(/\.\w+$/,"");const npc={name:baseName,image:p,posX:50,posY:50,scale:100,visible:false,category:"",tags:""};openNpcDetails(npc,p,upd=>{d.npcs.push(upd);r();setTimeout(()=>openDragPos(upd,scene,d,()=>r()),300);});}}).browse();});}}).render(true);}
+function openStageActorCfg(scene,d,idx){
+  const entry=d.boardActors?.[idx];
+  if(!entry)return;
+  const actor=game.actors.get(entry.actorId);
+  const defaultImg=getStageActorDefaultImage(actor);
+  const playerEntry=d.actors?.find?.(a=>a.id===entry.actorId);
+  const fallbackCombat=playerEntry?.combatImg||"";
+  new Dialog({
+    title:`Board Character - ${entry.name||actor?.name||"Character"}`,
+    content:`<form>
+      <div class="form-group"><label>Name</label><input name="name" value="${foundry.utils.escapeHTML(String(entry.name||actor?.name||"Character"))}"/></div>
+      <div class="form-group"><label>Default Image</label><div style="display:flex;gap:6px;align-items:center;"><input type="text" name="image" value="${foundry.utils.escapeHTML(String(entry.image||""))}" placeholder="${foundry.utils.escapeHTML(defaultImg)}" style="flex:1;"/><button type="button" name="browseImage"><i class="fas fa-folder-open"></i></button><button type="button" name="clearImage"><i class="fas fa-eraser"></i></button></div></div>
+      <div class="form-group"><label>Combat Image</label><div style="display:flex;gap:6px;align-items:center;"><input type="text" name="combatImage" value="${foundry.utils.escapeHTML(String(entry.combatImage||""))}" placeholder="${foundry.utils.escapeHTML(fallbackCombat||"Uses player combat portrait if set")}" style="flex:1;"/><button type="button" name="browseCombat"><i class="fas fa-folder-open"></i></button><button type="button" name="clearCombat"><i class="fas fa-eraser"></i></button></div></div>
+      <p style="margin:4px 0 0;color:#888;font-size:11px;">Combat image swaps in automatically whenever an encounter is active on this TOTM scene.</p>
+      <div class="form-group"><label>Layer Order</label><div style="display:flex;gap:6px;flex-wrap:wrap;"><button type="button" name="sendBack"><i class="fas fa-backward-step"></i> To Back</button><button type="button" name="backward"><i class="fas fa-chevron-left"></i> Back</button><button type="button" name="forward">Front <i class="fas fa-chevron-right"></i></button><button type="button" name="bringFront">To Front <i class="fas fa-forward-step"></i></button></div></div>
+      <div class="form-group"><label>Placement</label><div style="display:flex;gap:6px;flex-wrap:wrap;"><button type="button" name="reposition"><i class="fas fa-arrows-up-down-left-right"></i> Move / Resize</button><button type="button" name="remove" style="color:var(--totm-danger);border-color:var(--totm-danger);"><i class="fas fa-trash"></i> Remove</button></div></div>
+    </form>`,
+    buttons:{
+      save:{icon:'<i class="fas fa-check"></i>',label:"Save",callback:async html=>{
+        entry.name=String(html.find("[name=name]").val()||actor?.name||entry.name||"Character").trim()||"Character";
+        entry.image=String(html.find("[name=image]").val()||"").trim()||defaultImg;
+        entry.combatImage=String(html.find("[name=combatImage]").val()||"").trim();
+        await saveData(scene,d);
+        emit();
+        refreshUI(scene);
+      }}
+    },
+    default:"save",
+    render:html=>{
+      const browse=(field)=>new FilePicker({type:"image",callback:path=>html.find(`[name=${field}]`).val(path)}).browse();
+      html.find("[name=browseImage]").on("click",()=>browse("image"));
+      html.find("[name=browseCombat]").on("click",()=>browse("combatImage"));
+      html.find("[name=clearImage]").on("click",()=>html.find("[name=image]").val(""));
+      html.find("[name=clearCombat]").on("click",()=>html.find("[name=combatImage]").val(""));
+      html.find("[name=reposition]").on("click",()=>{
+        html.closest(".app")?.find?.(".header-button.close")?.trigger?.("click");
+        openDragPos(entry,scene,d,async()=>{
+          await saveData(scene,d);
+          emit();
+          refreshUI(scene);
+        },async()=>{
+          await removeStageActor(scene,d,entry.id);
+        });
+      });
+      html.find("[name=remove]").on("click",async()=>{
+        html.closest(".app")?.find?.(".header-button.close")?.trigger?.("click");
+        await removeStageActor(scene,d,entry.id);
+      });
+      html.find("[name=forward]").on("click",async()=>{await moveStageActor(scene,d,idx,1);html.closest(".app")?.find?.(".header-button.close")?.trigger?.("click");});
+      html.find("[name=backward]").on("click",async()=>{await moveStageActor(scene,d,idx,-1);html.closest(".app")?.find?.(".header-button.close")?.trigger?.("click");});
+      html.find("[name=bringFront]").on("click",async()=>{await moveStageActorToEdge(scene,d,idx,"front");html.closest(".app")?.find?.(".header-button.close")?.trigger?.("click");});
+      html.find("[name=sendBack]").on("click",async()=>{await moveStageActorToEdge(scene,d,idx,"back");html.closest(".app")?.find?.(".header-button.close")?.trigger?.("click");});
+    }
+  }).render(true);
+}
 
 // â”€â”€ DRAG POSITION EDITOR â”€â”€
 function openDragPos(entity,scene,d,onDone,onDelete){
   const main=document.getElementById("totm-stage");if(!main)return;
   const hiddenSourceEls=[];
   if(entity?.id)main.querySelectorAll(`.totm-scene-prop[data-prop-id="${entity.id}"]`).forEach(node=>{node.classList.add("is-being-positioned");hiddenSourceEls.push(node);});
+  if(entity?.kind==="board-actor"&&entity?.id)main.querySelectorAll(`.totm-stage-actor[data-board-actor-id="${entity.id}"]`).forEach(node=>{node.classList.add("is-being-positioned");hiddenSourceEls.push(node);});
   const targetId=enemyTargetId(entity);
   if(targetId)main.querySelectorAll(`.totm-scene-enemy[data-target-id="${targetId}"]`).forEach(node=>{node.classList.add("is-being-positioned");hiddenSourceEls.push(node);});
-  const dragKind=entity?.kind==="prop"?"prop":(entity?.instanceId?"enemy":"npc");
+  const dragKind=entity?.kind==="prop"?"prop":(entity?.kind==="board-actor"?"board-actor":(entity?.instanceId?"enemy":"npc"));
   const ghost=document.createElement("div");ghost.className=`totm-drag-entity is-${dragKind}`;ghost.tabIndex=0;
-  ghost.innerHTML=`<img src="${entity.image}"/><div class="totm-drag-label">${entity.name} â€” drag to position, scroll to resize</div>`;
+  ghost.innerHTML=`<img src="${entity.image||getStageActorImage(entity,d,{inCombat:!!(d.enemies||[]).length})}"/><div class="totm-drag-label">${entity.name} â€” drag to position, scroll to resize</div>`;
   ghost.style.left=`${entity.posX??50}%`;ghost.style.top=`${entity.posY??50}%`;ghost.style.transform=`translate(-50%,-50%) scale(${(entity.scale??100)/100})`;
   main.appendChild(ghost);
   if(typeof onDelete==="function"&&entity?.kind==="prop"){
@@ -1028,11 +1174,12 @@ function openMultiDragPos(entities,scene,d,onDone){
   entities.forEach((entity,idx)=>{
     const hiddenSourceEls=[];
     if(entity?.id)main.querySelectorAll(`.totm-scene-prop[data-prop-id="${entity.id}"]`).forEach(node=>{node.classList.add("is-being-positioned");hiddenSourceEls.push(node);});
+    if(entity?.kind==="board-actor"&&entity?.id)main.querySelectorAll(`.totm-stage-actor[data-board-actor-id="${entity.id}"]`).forEach(node=>{node.classList.add("is-being-positioned");hiddenSourceEls.push(node);});
     const targetId=enemyTargetId(entity);
     if(targetId)main.querySelectorAll(`.totm-scene-enemy[data-target-id="${targetId}"]`).forEach(node=>{node.classList.add("is-being-positioned");hiddenSourceEls.push(node);});
-    const dragKind=entity?.kind==="prop"?"prop":(entity?.instanceId?"enemy":"npc");
+    const dragKind=entity?.kind==="prop"?"prop":(entity?.kind==="board-actor"?"board-actor":(entity?.instanceId?"enemy":"npc"));
     const ghost=document.createElement("div");ghost.className=`totm-drag-entity is-${dragKind}`;
-  ghost.innerHTML=`<img src="${entity.image}"/><div class="totm-drag-label">${entity.name} Ã¢â‚¬â€ drag to position, scroll to resize${entity?.kind==="prop"?" | Del to delete":""}</div>`;
+  ghost.innerHTML=`<img src="${entity.image||getStageActorImage(entity,d,{inCombat:!!(d.enemies||[]).length})}"/><div class="totm-drag-label">${entity.name} Ã¢â‚¬â€ drag to position, scroll to resize${entity?.kind==="prop"?" | Del to delete":""}</div>`;
     ghost.style.left=`${entity.posX??50}%`;ghost.style.top=`${entity.posY??50}%`;ghost.style.transform=`translate(-50%,-50%) scale(${(entity.scale??100)/100})`;ghost.style.zIndex=String(100+idx);
     main.appendChild(ghost);
     let dragging=false,startX,startY,startLeft,startTop;
@@ -1198,7 +1345,7 @@ function openActorCfg(scene,d,idx){const a=d.actors[idx];if(!a)return;const avai
 function pickActor(scene,d){const av=game.actors.contents.filter(a=>!d.actors.find(e=>e.id===a.id));if(!av.length){ui.notifications.warn("All actors added.");return;}new Dialog({title:"Add Player",content:`<form><div class="form-group"><label>Actor</label><select name="a" style="width:100%">${av.map(a=>`<option value="${a.id}">${a.name}</option>`).join("")}</select></div></form>`,buttons:{add:{icon:'<i class="fas fa-plus"></i>',label:"Add",callback:async h=>{const a=game.actors.get(h.find("[name=a]").val());if(!a)return;d.actors.push(makeEntry(a,d.actors.length));await saveData(scene,d);emit();refreshUI(scene);}}},default:"add"}).render(true);}
 
 // â”€â”€ HOOKS â”€â”€
-Hooks.on("updateActor",async a=>{if(!document.body.classList.contains("totm-active"))return;const s=game.scenes.viewed;if(!s||!isTOTM(s))return;const d=getData(s);if(d.actors.find(x=>x.id===a.id)||d.enemies.find(x=>x.id===a.id)){refreshUI(s);await checkEncounterEnemyStates(s,d);}});
+Hooks.on("updateActor",async a=>{if(!document.body.classList.contains("totm-active"))return;const s=game.scenes.viewed;if(!s||!isTOTM(s))return;const d=getData(s);if(d.actors.find(x=>x.id===a.id)||d.boardActors?.find?.(x=>x.actorId===a.id)||d.enemies.find(x=>x.id===a.id)){refreshUI(s);await checkEncounterEnemyStates(s,d);}});
 Hooks.on("updateToken",async t=>{const s=game.scenes.viewed;if(!document.body.classList.contains("totm-active")||!s||s.id!==t.parent?.id||!isTOTM(s))return;if(t.getFlag(MODULE_ID,FLAG_PROXY)){const d=getData(s);refreshUI(s);await checkEncounterEnemyStates(s,d);}});
 Hooks.on("updateSetting",setting=>{if(setting.key==="global-progress-clocks.activeClocks")window.clockDatabase?.refresh?.();const s=game.scenes.viewed;if(!document.body.classList.contains("totm-active")||!s||!isTOTM(s))return;if(setting.key==="global-progress-clocks.activeClocks")requestSceneRefresh(s);});
 Hooks.on("getSceneContextOptions",(app,items)=>{items.push({name:"Toggle Theater of the Mind",icon:'<i class="fas fa-theater-masks"></i>',condition:()=>isGM(),callback:async el=>{const id=el.dataset?.sceneId||el.dataset?.documentId||el.dataset?.entryId||el.closest("[data-scene-id]")?.dataset?.sceneId||el.closest("[data-document-id]")?.dataset?.documentId||el.closest("[data-entry-id]")?.dataset?.entryId;const s=game.scenes.get(id);if(s)await toggleTOTM(s);}});});
@@ -1224,5 +1371,5 @@ Hooks.on("updateSetting",setting=>{if(setting.key==="simple-timekeeping.configur
 Hooks.once("init",()=>{console.log(`${MODULE_ID} | v8`);regSettings();});
 Hooks.once("ready",async()=>{game.socket.on(`module.${MODULE_ID}`,onSock);injectUI();window.addEventListener("resize",()=>{if(document.body.classList.contains("totm-active")){fitSB();syncHotbarPosition();}});const s=game.scenes.viewed;if(s&&isTOTM(s)){const d=getData(s);const changedEnemies=await ensureEnemyTokenDocs(s,d),changedPlayers=await ensurePlayerTokenDocs(s,d);if(changedEnemies||changedPlayers)await saveData(s,d);activate(s);}});
 Hooks.once("ready",()=>{window.TOTMOverlay={isTOTM:s=>isTOTM(s||game.scenes.viewed),toggle:async()=>{const s=game.scenes.viewed;if(s)await toggleTOTM(s);}};});
-Hooks.once("ready",()=>{window.addEventListener("keydown",async e=>{if(e.repeat||e.key.toLowerCase()!=="t"||typingInField(e)||!document.body.classList.contains("totm-active"))return;const scene=game.scenes.viewed;if(!scene||!isTOTM(scene))return;const d=getData(scene),hoveredPlayer=document.querySelector("#totm-ui .totm-actor-card:hover"),hoveredEnemy=document.querySelector("#totm-ui .totm-scene-enemy:hover, #totm-ui .totm-enemy-card:hover");e.preventDefault();if(hoveredPlayer?.dataset.actorId){if(!await togglePlayerTarget(hoveredPlayer.dataset.actorId,scene))ui.notifications.warn("No scene token found for that player.");refreshUI(scene);return;}if(hoveredEnemy?.dataset.targetId){await toggleEnemyTarget(scene,d,hoveredEnemy.dataset.targetId);return;}if(document.querySelector("#totm-ui #totm-actor-list:hover")){await targetNextPlayer(scene,d);return;}await targetNextEnemy(scene,d);});});
+Hooks.once("ready",()=>{window.addEventListener("keydown",async e=>{if(e.repeat||e.key.toLowerCase()!=="t"||typingInField(e)||!document.body.classList.contains("totm-active"))return;const scene=game.scenes.viewed;if(!scene||!isTOTM(scene))return;const d=getData(scene),hoveredPlayer=document.querySelector("#totm-ui .totm-actor-card:hover"),hoveredStageActor=document.querySelector("#totm-ui .totm-stage-actor:hover"),hoveredEnemy=document.querySelector("#totm-ui .totm-scene-enemy:hover, #totm-ui .totm-enemy-card:hover");e.preventDefault();const hoveredActorId=hoveredPlayer?.dataset.actorId||hoveredStageActor?.dataset.actorId;if(hoveredActorId){if(!await togglePlayerTarget(hoveredActorId,scene))ui.notifications.warn("No scene token found for that player.");refreshUI(scene);return;}if(hoveredEnemy?.dataset.targetId){await toggleEnemyTarget(scene,d,hoveredEnemy.dataset.targetId);return;}if(document.querySelector("#totm-ui #totm-actor-list:hover")){await targetNextPlayer(scene,d);return;}await targetNextEnemy(scene,d);});});
 
