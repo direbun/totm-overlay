@@ -11,21 +11,31 @@ export function buildStageSceneImages({d,scene,deps}){
     ENEMY_FADE_MS,
     enemyTargetId,
     getQuestPinImage,
+    getSceneEntityImage,
+    getSceneEntityLayout,
     getStageActorImage,
-    getStageActorLayout
+    getStageActorLayout,
+    SCENE_IMAGE_SWAP_MS
   }=deps;
 
   const sceneImgs=[];
   const activeBackgroundKey=String(d.background||"");
   const backgroundProps=Array.isArray(d.propsByBackground?.[activeBackgroundKey])?d.propsByBackground[activeBackgroundKey]:(Array.isArray(d.props)?d.props.filter(p=>String(p?.backgroundKey||"")===activeBackgroundKey):[]);
-  const backgroundQuestPins=Array.isArray(d.questPinsByBackground?.[activeBackgroundKey])?d.questPinsByBackground[activeBackgroundKey]:(Array.isArray(d.questPins)?d.questPins.filter(p=>String(p?.backgroundKey||"")===activeBackgroundKey):[]);
-  (d.npcs||[]).filter(n=>n.visible).forEach(n=>sceneImgs.push(`<div class="totm-scene-img totm-scene-npc" style="left:${n.posX??50}%;top:${n.posY??50}%;transform:translate(-50%,-50%) scale(${(n.scale??100)/100});"><img src="${n.image}" alt="${n.name}"/></div>`));
+  const backgroundQuestPins=Array.isArray(d.questPins)?d.questPins.filter(p=>String(p?.backgroundKey||"")===activeBackgroundKey):(Array.isArray(d.questPinsByBackground?.[activeBackgroundKey])?d.questPinsByBackground[activeBackgroundKey]:[]);
+  (d.npcs||[]).filter(n=>n.visible).forEach((n,i)=>{
+    const layout=getSceneEntityLayout(n);
+    const fadeClass=n.imageSwapAt&&Date.now()-(n.imageSwapAt||0)<SCENE_IMAGE_SWAP_MS+100?"is-image-swapping":"";
+    sceneImgs.push(`<div class="totm-scene-img totm-scene-npc ${fadeClass}" data-nidx="${i}" style="left:${layout.posX}%;top:${layout.posY}%;transform:translate(-50%,-50%) scale(${layout.scale/100});"><img src="${getSceneEntityImage(n)}" alt="${n.name}"/></div>`);
+  });
   backgroundProps.forEach((p,i)=>{
-    sceneImgs.push(`<div class="totm-scene-img totm-scene-prop" data-pidx="${i}" data-prop-id="${p.id||""}" style="left:${p.posX??50}%;top:${p.posY??50}%;transform:translate(-50%,-50%) scale(${(p.scale??100)/100});"><img src="${p.image}" alt="${p.name||"Prop"}"/></div>`);
+    const layout=getSceneEntityLayout(p);
+    const fadeClass=p.imageSwapAt&&Date.now()-(p.imageSwapAt||0)<SCENE_IMAGE_SWAP_MS+100?"is-image-swapping":"";
+    sceneImgs.push(`<div class="totm-scene-img totm-scene-prop ${fadeClass}" data-pidx="${i}" data-prop-id="${p.id||""}" style="left:${layout.posX}%;top:${layout.posY}%;transform:translate(-50%,-50%) scale(${layout.scale/100});"><img src="${getSceneEntityImage(p)}" alt="${p.name||"Prop"}"/></div>`);
   });
   backgroundQuestPins.forEach((p,i)=>{
     const img=p.image||getQuestPinImage?.(p.type||"quest");
-    sceneImgs.push(`<div class="totm-scene-img totm-scene-quest" data-qidx="${i}" data-quest-id="${p.id||""}" style="left:${p.posX??50}%;top:${p.posY??50}%;transform:translate(-50%,-50%) scale(${(p.scale??100)/100});"><img src="${img}" alt="${p.label||"Quest"}"/></div>`);
+    const questName=foundry.utils.escapeHTML(String(p.name||p.label||"Quest"));
+    sceneImgs.push(`<div class="totm-scene-img totm-scene-quest" data-qidx="${i}" data-quest-id="${p.id||""}" title="${questName}" aria-label="${questName}" style="left:${p.posX??50}%;top:${p.posY??50}%;transform:translate(-50%,-50%) scale(${(p.scale??100)/100});"><img src="${img}" alt="${questName}"/></div>`);
   });
   if(d.boardActorsVisible!==false){
     (d.boardActors||[]).forEach((entry,i)=>{
@@ -49,10 +59,11 @@ export function buildStageSceneImages({d,scene,deps}){
   (d.enemies||[]).forEach((e,i)=>{
     normalizeEnemyEntry(e);
     const a=getEncounterActor(e,scene);
-    const img=a?.prototypeToken?.texture?.src||a?.img||e.image||"icons/svg/mystery-man.svg";
+    const layout=getSceneEntityLayout(e);
+    const img=getSceneEntityImage?.(e)||a?.prototypeToken?.texture?.src||a?.img||e.image||"icons/svg/mystery-man.svg";
     const fadeClass=e.transitionState&&now-(e.transitionAt||0)<ENEMY_FADE_MS+150?`is-${e.transitionState}`:"";
-    const scale=(e.scale??100)/100;
-    sceneImgs.push(`<div class="totm-scene-img totm-scene-enemy ${enemyTargets.includes(enemyTargetId(e))?"enemy-targeted":""} ${fadeClass}" data-eidx="${i}" data-target-id="${enemyTargetId(e)}" data-token-id="${e.tokenId||""}" style="--totm-scene-scale:${scale};left:${e.posX??50}%;top:${e.posY??70}%;transform:translate(-50%,-50%) scale(var(--totm-scene-scale));"><img src="${img}" alt="${e.name}"/></div>`);
+    const imageFadeClass=e.imageSwapAt&&Date.now()-(e.imageSwapAt||0)<SCENE_IMAGE_SWAP_MS+100?"is-image-swapping":"";
+    sceneImgs.push(`<div class="totm-scene-img totm-scene-enemy ${enemyTargets.includes(enemyTargetId(e))?"enemy-targeted":""} ${fadeClass} ${imageFadeClass}" data-eidx="${i}" data-target-id="${enemyTargetId(e)}" data-token-id="${e.tokenId||""}" style="--totm-scene-scale:${layout.scale/100};left:${layout.posX}%;top:${layout.posY}%;transform:translate(-50%,-50%) scale(var(--totm-scene-scale));"><img src="${img}" alt="${e.name}"/></div>`);
   });
   return sceneImgs;
 }
@@ -66,7 +77,13 @@ export function renderEnemyBar({d,scene,deps}){
 }
 
 export function bindEnemyStageEvents({el,scene,d,deps}){
-  const {isGM,setTargets,getTargets,targetRandomEnemy,targetNextEnemy,toggleEnemyTarget,getEncounterActor,pruneEnemyTokenDocs,saveData,emit,refreshUI,makeEnemyEntry,ensureEnemyTokenDocs,openDragPos,getQuestPinImage,addStageActor,openStageActorCfg,removeStageActor,moveStageActor,moveStageActorToEdge}=deps;
+  const {isGM,setTargets,getTargets,targetRandomEnemy,targetNextEnemy,toggleEnemyTarget,getEncounterActor,pruneEnemyTokenDocs,saveData,emit,refreshUI,makeEnemyEntry,ensureEnemyTokenDocs,openDragPos,getQuestPinImage,addStageActor,openStageActorCfg,removeStageActor,moveStageActor,moveStageActorToEdge,toggleSceneEntityImage,hasSceneEntityAltImage}=deps;
+  const wait = ms => new Promise(resolve=>setTimeout(resolve, ms));
+  const animateSwapThen = async (node, action) => {
+    if(node) node.classList.add("is-image-swap-pending");
+    await wait(140);
+    await action();
+  };
   el.querySelector("#totm-enemy-tools")?.addEventListener("click",async e=>{
     const btn=e.target.closest("[data-target-act]");
     if(!btn)return;
@@ -78,28 +95,79 @@ export function bindEnemyStageEvents({el,scene,d,deps}){
 
   if(!isGM())return;
 
+  const removeNpcAtIndex = async idx => {
+    if(!Number.isInteger(idx)||idx<0||!Array.isArray(d.npcs)||!d.npcs[idx])return;
+    d.npcs.splice(idx,1);
+    await saveData(scene,d);
+    emit();
+    refreshUI(scene);
+  };
+  const toggleNpcImageAtIndex = async (idx,node=null) => {
+    if(!Number.isInteger(idx)||idx<0||!Array.isArray(d.npcs)||!d.npcs[idx])return false;
+    await animateSwapThen(node, async ()=>{
+      if(!toggleSceneEntityImage(d.npcs[idx]))return false;
+      await saveData(scene,d);
+      emit();
+      refreshUI(scene);
+    });
+    return true;
+  };
+  const removeEnemyAtIndex = async idx => {
+    if(!Number.isInteger(idx)||idx<0||!Array.isArray(d.enemies)||!d.enemies[idx])return;
+    d.enemies.splice(idx,1);
+    if(!d.enemies.length)d.combatActive=false;
+    await pruneEnemyTokenDocs(scene,d);
+    await saveData(scene,d);
+    emit();
+    refreshUI(scene);
+  };
+  const toggleEnemyImageAtIndex = async (idx,node=null) => {
+    if(!Number.isInteger(idx)||idx<0||!Array.isArray(d.enemies)||!d.enemies[idx])return false;
+    if(!hasSceneEntityAltImage(d.enemies[idx]))return false;
+    await animateSwapThen(node, async ()=>{
+      toggleSceneEntityImage(d.enemies[idx]);
+      await saveData(scene,d);
+      emit();
+      refreshUI(scene);
+    });
+    return true;
+  };
+
   const getActiveBackgroundKey = () => String(d.background||"");
   const syncCurrentQuestView = bucket => {
     const key=getActiveBackgroundKey();
+    const normalized=(Array.isArray(bucket)?bucket:[]).map(pin=>foundry.utils.deepClone({...pin,backgroundKey:key}));
+    if(!Array.isArray(d.questPins)) d.questPins=[];
+    d.questPins=d.questPins.filter(pin=>String(pin?.backgroundKey||"")!==key);
+    d.questPins.push(...normalized);
     if(!d.questPinsByBackground || typeof d.questPinsByBackground!=="object" || Array.isArray(d.questPinsByBackground)) d.questPinsByBackground={};
-    d.questPinsByBackground[key]=bucket;
-    d.questPins=Array.isArray(bucket)?bucket.map(p=>foundry.utils.deepClone(p)):[];
+    d.questPinsByBackground[key]=normalized.map(pin=>foundry.utils.deepClone(pin));
     return d.questPinsByBackground[key];
   };
   const getQuestBucket = () => {
     const key=getActiveBackgroundKey();
+    if(!Array.isArray(d.questPins)) d.questPins=[];
     if(!d.questPinsByBackground || typeof d.questPinsByBackground!=="object" || Array.isArray(d.questPinsByBackground)) d.questPinsByBackground={};
+    const hasFlatData=d.questPins.some(pin=>pin);
     const hasBucketData=Object.values(d.questPinsByBackground).some(bucket=>Array.isArray(bucket)&&bucket.length);
-    if(!hasBucketData && Array.isArray(d.questPins) && d.questPins.length){
+    if(!hasFlatData && hasBucketData){
+      const flat=[];
+      for(const [bucketKey,bucket] of Object.entries(d.questPinsByBackground)){
+        if(!Array.isArray(bucket))continue;
+        flat.push(...bucket.map(pin=>foundry.utils.deepClone({...pin,backgroundKey:String(pin?.backgroundKey||bucketKey)})));
+      }
+      d.questPins=flat;
+    }else if(!hasBucketData && d.questPins.length){
       const legacy=d.questPins.splice(0,d.questPins.length);
       for(const pin of legacy){
         const pinKey=String(pin?.backgroundKey||key);
         if(!Array.isArray(d.questPinsByBackground[pinKey])) d.questPinsByBackground[pinKey]=[];
-        d.questPinsByBackground[pinKey].push(pin);
+        d.questPinsByBackground[pinKey].push(foundry.utils.deepClone({...pin,backgroundKey:pinKey}));
+        d.questPins.push(foundry.utils.deepClone({...pin,backgroundKey:pinKey}));
       }
     }
-    if(!Array.isArray(d.questPinsByBackground[key])) d.questPinsByBackground[key]=[];
-    return syncCurrentQuestView(d.questPinsByBackground[key]);
+    const current=d.questPins.filter(pin=>String(pin?.backgroundKey||"")===key);
+    return syncCurrentQuestView(current);
   };
   const saveQuestBucket = async bucket => {
     syncCurrentQuestView(bucket);
@@ -109,12 +177,26 @@ export function bindEnemyStageEvents({el,scene,d,deps}){
   };
   const openQuestPinMenu = pin => {
     new Dialog({
-      title: pin.label||"Quest Pin",
-      content: `<form><div class="form-group"><label>State</label><select name="type"><option value="quest" ${pin.type==="quest"?"selected":""}>Exclamation</option><option value="question" ${pin.type==="question"?"selected":""}>Question Mark</option><option value="complete" ${pin.type==="complete"?"selected":""}>Tick</option></select></div></form>`,
+      title: pin.name||pin.label||"Quest Pin",
+      content: `<form><div class="form-group"><label>Name</label><input name="name" value="${foundry.utils.escapeHTML(String(pin.name||"Quest"))}"/></div><div class="form-group"><label>State</label><select name="type"><option value="quest" ${pin.type==="quest"?"selected":""}>Exclamation</option><option value="question" ${pin.type==="question"?"selected":""}>Question Mark</option><option value="complete" ${pin.type==="complete"?"selected":""}>Tick</option></select></div></form>`,
       buttons: {
-        move:{icon:'<i class="fas fa-arrows-alt"></i>',label:"Move",callback:()=>openDragPos?.(pin,scene,d,async()=>{await saveQuestBucket(getQuestBucket());})},
+        move:{icon:'<i class="fas fa-arrows-alt"></i>',label:"Move",callback:()=>{
+          const bucket=getQuestBucket();
+          const livePin=bucket.find(p=>p?.id===pin.id);
+          if(!livePin)return;
+          openDragPos?.(livePin,scene,d,async()=>{await saveQuestBucket(bucket);});
+        }},
         del:{icon:'<i class="fas fa-trash"></i>',label:"Delete",callback:async()=>{const bucket=getQuestBucket();const idx=bucket.findIndex(p=>p?.id===pin.id);if(idx<0)return;bucket.splice(idx,1);await saveQuestBucket(bucket);}},
-        save:{icon:'<i class="fas fa-check"></i>',label:"Save",callback:async html=>{pin.type=String(html.find("[name=type]").val()||"quest");pin.image=getQuestPinImage?.(pin.type);pin.label=pin.type==="question"?"Question":pin.type==="complete"?"Complete":"Quest";await saveQuestBucket(getQuestBucket());}}
+        save:{icon:'<i class="fas fa-check"></i>',label:"Save",callback:async html=>{
+          const bucket=getQuestBucket();
+          const livePin=bucket.find(p=>p?.id===pin.id);
+          if(!livePin)return;
+          livePin.name=String(html.find("[name=name]").val()||"Quest").trim()||"Quest";
+          livePin.type=String(html.find("[name=type]").val()||"quest");
+          livePin.image=getQuestPinImage?.(livePin.type);
+          livePin.label=livePin.type==="question"?"Question":livePin.type==="complete"?"Complete":"Quest";
+          await saveQuestBucket(bucket);
+        }}
       },
       default:"save"
     }).render(true);
@@ -164,6 +246,20 @@ export function bindEnemyStageEvents({el,scene,d,deps}){
     await saveData(scene,d);
     emit();
     refreshUI(scene);
+  };
+  const toggleScenePropImageById = async (propId,node=null) => {
+    if(!propId)return false;
+    const propBucket=getPropBucket();
+    const prop=propBucket.find(p=>p?.id===propId);
+    if(!prop||!hasSceneEntityAltImage(prop))return false;
+    await animateSwapThen(node, async ()=>{
+      toggleSceneEntityImage(prop);
+      syncCurrentPropView(propBucket);
+      await saveData(scene,d);
+      emit();
+      refreshUI(scene);
+    });
+    return true;
   };
 
   const addSceneProp = async (image, opts={}) => {
@@ -396,13 +492,16 @@ export function bindEnemyStageEvents({el,scene,d,deps}){
     const card=e.target.closest(".totm-enemy-card");
     if(!card)return;
     e.preventDefault();
-    const en=d.enemies[+card.dataset.eidx];
+    const idx=+card.dataset.eidx;
+    const en=d.enemies[idx];
     if(!en)return;
     openDragPos?.(en, scene, d, async () => {
       await ensureEnemyTokenDocs(scene, d);
       await saveData(scene, d);
       emit();
       refreshUI(scene);
+    }, async () => {
+      await removeEnemyAtIndex(idx);
     });
   });
   el.querySelectorAll(".totm-scene-enemy").forEach(img=>img.addEventListener("click",async e=>{
@@ -418,13 +517,49 @@ export function bindEnemyStageEvents({el,scene,d,deps}){
   }));
   el.querySelectorAll(".totm-scene-enemy").forEach(img=>img.addEventListener("contextmenu",e=>{
     e.preventDefault();
-    const en=d.enemies[+e.currentTarget?.dataset?.eidx];
+    const idx=+e.currentTarget?.dataset?.eidx;
+    const en=d.enemies[idx];
     if(!en)return;
+    if(!e.shiftKey&&hasSceneEntityAltImage(en)){
+      void toggleEnemyImageAtIndex(idx,e.currentTarget);
+      return;
+    }
     openDragPos?.(en, scene, d, async () => {
       await ensureEnemyTokenDocs(scene, d);
       await saveData(scene, d);
       emit();
       refreshUI(scene);
+    }, async () => {
+      await removeEnemyAtIndex(idx);
+    });
+  }));
+  el.querySelectorAll(".totm-scene-npc").forEach(img=>img.addEventListener("dblclick",e=>{
+    const idx=+e.currentTarget?.dataset?.nidx;
+    const npc=d.npcs?.[idx];
+    const actor=game.actors?.contents?.find?.(a=>a.img===npc?.image||a.prototypeToken?.texture?.src===npc?.image);
+    actor?.sheet?.render?.(true);
+  }));
+  el.querySelectorAll(".totm-scene-npc").forEach(img=>img.addEventListener("click",async e=>{
+    if(!e.shiftKey)return;
+    e.preventDefault();
+    e.stopPropagation();
+    await removeNpcAtIndex(+e.currentTarget?.dataset?.nidx);
+  }));
+  el.querySelectorAll(".totm-scene-npc").forEach(img=>img.addEventListener("contextmenu",e=>{
+    e.preventDefault();
+    const idx=+e.currentTarget?.dataset?.nidx;
+    const npc=d.npcs?.[idx];
+    if(!npc)return;
+    if(!e.shiftKey&&hasSceneEntityAltImage(npc)){
+      void toggleNpcImageAtIndex(idx,e.currentTarget);
+      return;
+    }
+    openDragPos?.(npc, scene, d, async () => {
+      await saveData(scene, d);
+      emit();
+      refreshUI(scene);
+    }, async () => {
+      await removeNpcAtIndex(idx);
     });
   }));
   el.querySelectorAll(".totm-scene-prop").forEach(img=>img.addEventListener("click",async e=>{
@@ -445,7 +580,11 @@ export function bindEnemyStageEvents({el,scene,d,deps}){
     const propBucket=getPropBucket();
     const prop=propBucket[idx];
     if(!prop)return;
-    if(e.shiftKey){
+    if(!e.shiftKey&&hasSceneEntityAltImage(prop)){
+      await toggleScenePropImageById(prop.id,e.currentTarget);
+      return;
+    }
+    if(e.altKey){
       await deleteScenePropById(prop.id);
       return;
     }

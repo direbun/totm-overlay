@@ -2,6 +2,7 @@
 :root{--totm-bg:#07070c;--totm-panel:rgba(10,10,18,.94);--totm-panel-border:rgba(180,160,110,.2);--totm-gold:#c9a84c;--totm-gold-dim:rgba(201,168,76,.3);--totm-gold-glow:rgba(201,168,76,.12);--totm-text:#e8e4dc;--totm-text-dim:rgba(232,228,220,.5);--totm-text-faint:rgba(232,228,220,.25);--totm-highlight:#e2c87e;--totm-danger:#a0392e;--totm-radius:5px;--totm-font:"Signika","Palatino Linotype",serif;--totm-bg-accent:radial-gradient(circle at top,rgba(255,255,255,.05),transparent 45%);--totm-panel-shadow:0 10px 35px rgba(0,0,0,.28);--totm-target-color:#ff6a00}
 body.totm-active #board{visibility:hidden!important;pointer-events:none!important}body.totm-active #controls{display:none!important}
 #totm-ui{display:none}body.totm-active #totm-ui{display:flex;position:fixed;top:0;left:0;bottom:0;right:305px;z-index:50;background:var(--totm-bg);font-family:var(--totm-font);color:var(--totm-text);overflow:hidden;transition:right 300ms ease}
+body.totm-active #sidebar .totm-sidebar-lock{opacity:.35;pointer-events:none}
 #totm-ui *{box-sizing:border-box}
 #totm-ui::before,#totm-ui::after{content:none}
 body.totm-active #totm-ui.totm-soft-refresh .totm-actor-card,
@@ -35,6 +36,9 @@ body.totm-active #hotbar{opacity:0!important;pointer-events:none!important}
 .totm-scene-img{position:absolute;z-index:2;pointer-events:none;transition:opacity 600ms ease}
 .totm-scene-img img{object-fit:contain;filter:drop-shadow(0 4px 20px rgba(0,0,0,.6))}
 .totm-scene-npc img,.totm-stage-actor img,.totm-scene-enemy img{max-height:48vh;max-width:34vw}
+.totm-scene-npc{pointer-events:auto;cursor:context-menu;z-index:2}
+.totm-scene-npc img{transition:filter 180ms ease,transform 180ms ease}
+.totm-scene-npc:hover img{filter:drop-shadow(0 0 14px rgba(201,168,76,.4)) drop-shadow(0 4px 20px rgba(0,0,0,.6));transform:scale(1.01)}
 .totm-scene-prop img{max-height:70vh;max-width:46vw}
 .totm-scene-prop{pointer-events:auto;cursor:context-menu;z-index:2}
 .totm-stage-actor{pointer-events:auto;cursor:pointer;z-index:2}
@@ -42,7 +46,9 @@ body.totm-active #hotbar{opacity:0!important;pointer-events:none!important}
 .totm-stage-actor:hover img{filter:drop-shadow(0 0 18px rgba(201,168,76,.45)) drop-shadow(0 4px 20px rgba(0,0,0,.6));transform:scale(1.02)}
 .totm-scene-prop img{transition:filter 180ms ease,transform 180ms ease}
 .totm-scene-prop:hover img{filter:drop-shadow(0 0 14px rgba(201,168,76,.4)) drop-shadow(0 4px 20px rgba(0,0,0,.6));transform:scale(1.01)}
-.totm-scene-prop.is-being-positioned,.totm-stage-actor.is-being-positioned,.totm-scene-enemy.is-being-positioned{opacity:0!important;pointer-events:none!important}
+.totm-scene-npc.is-being-positioned,.totm-scene-prop.is-being-positioned,.totm-stage-actor.is-being-positioned,.totm-scene-enemy.is-being-positioned{opacity:0!important;pointer-events:none!important}
+.totm-scene-npc.is-image-swapping img,.totm-scene-prop.is-image-swapping img{animation:totmSceneImageSwap .35s ease}
+.totm-scene-npc.is-image-swap-pending img,.totm-scene-prop.is-image-swap-pending img,.totm-scene-enemy.is-image-swap-pending img{animation:totmSceneImageSwapOut .14s ease forwards}
 .totm-scene-quest{pointer-events:auto;cursor:pointer;z-index:3}
 .totm-scene-quest img{width:48px;height:48px;max-width:none;max-height:none;filter:drop-shadow(0 4px 20px rgba(0,0,0,.6))}
 .totm-scene-quest:hover img{filter:drop-shadow(0 0 14px rgba(201,168,76,.45)) drop-shadow(0 4px 20px rgba(0,0,0,.6))}
@@ -60,17 +66,32 @@ body.totm-active #hotbar{opacity:0!important;pointer-events:none!important}
 .totm-scene-enemy.is-phase-in{animation:totmEnemyFadeIn .7s ease both}
 @keyframes totmEnemyFadeOut{0%{opacity:1;filter:none;transform:translate(-50%,-50%) scale(var(--totm-scene-scale,1))}100%{opacity:0;transform:translate(-50%,-50%) scale(calc(var(--totm-scene-scale,1) * .92))}}
 @keyframes totmEnemyFadeIn{0%{opacity:0;transform:translate(-50%,-50%) scale(calc(var(--totm-scene-scale,1) * 1.12))}100%{opacity:1;transform:translate(-50%,-50%) scale(var(--totm-scene-scale,1))}}
+@keyframes totmSceneImageSwap{0%{opacity:.08}100%{opacity:1}}
+@keyframes totmSceneImageSwapOut{0%{opacity:1}100%{opacity:.06}}
 
 /* Draggable entity during positioning */
-.totm-drag-entity{position:absolute;z-index:100;cursor:grab;pointer-events:auto;border:2px dashed var(--totm-gold);border-radius:4px;padding:4px}
+.totm-drag-entity{position:absolute;z-index:100;cursor:grab;pointer-events:auto;overflow:visible}
 .totm-drag-entity.active-drag{border-style:solid;box-shadow:0 0 18px rgba(201,168,76,.35)}
 .totm-drag-entity:active{cursor:grabbing}
-.totm-drag-delete{position:absolute;top:6px;right:6px;z-index:2;width:28px;height:28px;border:none;border-radius:999px;background:rgba(160,57,46,.92);color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 14px rgba(0,0,0,.28)}
+.totm-drag-visual{border:2px dashed var(--totm-gold);border-radius:4px;padding:4px;transform:scale(var(--totm-drag-scale,1));transform-origin:center center}
+.totm-drag-entity.active-drag .totm-drag-visual{border-style:solid;box-shadow:0 0 18px rgba(201,168,76,.35)}
+.totm-drag-controls{position:absolute;top:-10px;right:-10px;z-index:6;display:flex;align-items:center;gap:4px;pointer-events:auto}
+.totm-drag-tool{position:static;z-index:6;width:22px;height:22px;border:1px solid rgba(255,255,255,.72);border-radius:999px;color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 3px 10px rgba(0,0,0,.35);flex:0 0 auto;padding:0;font-size:10px}
+.totm-drag-tool:disabled{opacity:.45;cursor:default}
+.totm-drag-swap{background:rgba(90,90,90,.95)}
+.totm-drag-swap:hover:not(:disabled){background:#787878}
+.totm-drag-swap.is-configured{background:rgba(112,136,175,.98)}
+.totm-drag-swap.is-configured:hover:not(:disabled){background:#84a0cf}
+.totm-drag-alt-image{background:rgba(64,92,122,.98)}
+.totm-drag-alt-image:hover{background:#587da5}
+.totm-drag-alt-image.is-configured{background:rgba(84,128,88,.98);border-color:rgba(227,255,221,.8)}
+.totm-drag-alt-image.is-configured:hover{background:#679d6c}
+.totm-drag-delete{background:rgba(160,57,46,.98)}
 .totm-drag-delete:hover{background:#c44838}
-.totm-drag-entity img{object-fit:contain;pointer-events:none;opacity:.85}
-.totm-drag-entity.is-npc img,.totm-drag-entity.is-board-actor img,.totm-drag-entity.is-enemy img{max-height:48vh;max-width:34vw}
-.totm-drag-entity.is-prop img{max-height:70vh;max-width:46vw}
-.totm-drag-entity .totm-drag-label{position:absolute;bottom:-20px;left:50%;transform:translateX(-50%);font-size:10px;color:var(--totm-gold);white-space:nowrap;text-shadow:0 1px 4px #000}
+.totm-drag-visual img{object-fit:contain;pointer-events:none;opacity:.85;display:block}
+.totm-drag-entity.is-npc .totm-drag-visual img,.totm-drag-entity.is-board-actor .totm-drag-visual img,.totm-drag-entity.is-enemy .totm-drag-visual img{max-height:48vh;max-width:34vw}
+.totm-drag-entity.is-quest .totm-drag-visual img{width:48px;height:48px;max-width:none;max-height:none}
+.totm-drag-entity.is-prop .totm-drag-visual img{max-height:70vh;max-width:46vw}
 .totm-enc-preview.is-empty::after{content:"Pick a background to preview it here";position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:rgba(255,255,255,.55);font-size:12px;letter-spacing:.02em}
 #totm-enc-enemy-roster.totm-drag-over{border-color:var(--totm-gold)!important;box-shadow:0 0 0 1px rgba(201,168,76,.45) inset,0 0 18px rgba(201,168,76,.18)}
 .totm-enc-enemy-list{display:flex;flex-direction:column;gap:8px}
