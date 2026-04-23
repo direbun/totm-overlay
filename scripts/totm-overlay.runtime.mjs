@@ -831,7 +831,7 @@ function refreshUI(scene){
       <div id="totm-hotbar-slot">${renderTotmHotbar()}</div>
       ${renderEnemyBar(d)}
     </div>`;
-  bindEvents(scene,d);bindStagePins(scene,d,el);fitSB();syncHotbarPosition();
+  bindEvents(scene,d);bindStagePins(scene,d,el);if(!hadLayout){fitSB();syncHotbarPosition();}
   if(hadLayout)requestAnimationFrame(()=>el.classList.remove("totm-soft-refresh"));
 }
 
@@ -1344,13 +1344,19 @@ function openDragPos(entity,scene,d,onDone,onDelete){
   const getDragLayout=()=>canSetAltImage?getSceneEntityLayout(entity):{posX:entity.posX??50,posY:entity.posY??50,scale:entity.scale??100};
   const getDragImage=()=>canSetAltImage?getSceneEntityImage(entity):(entity.image||getStageActorImage(entity,d,{inCombat:!!d.combatActive}));
   const hasAlt=()=>canSetAltImage&&hasSceneEntityAltImage(entity);
-  ghost.innerHTML=`<div class="totm-drag-visual"><img src="${getDragImage()}"/></div>
-  <div class="totm-drag-controls">
-    ${canSetAltImage?`<button type="button" class="totm-drag-tool totm-drag-swap ${hasAlt()?"is-configured":""}" title="Swap image" ${hasAlt()?"":"disabled"}><i class="fas fa-repeat"></i></button>
-    <button type="button" class="totm-drag-tool totm-drag-alt-image ${hasAlt()?"is-configured":""}" title="${hasAlt()?"Change alternate image":"Set alternate image"}"><i class="fas fa-paint-brush"></i></button>`:""}
-    ${typeof onDelete==="function"&&entity?.kind!=="quest"?`<button type="button" class="totm-drag-tool totm-drag-delete" title="Delete"><i class="fas fa-trash"></i></button>`:""}
+  ghost.innerHTML=`<div class="totm-drag-visual"><img src="${getDragImage()}"/>
+    <div class="totm-drag-controls">
+      ${canSetAltImage?`<button type="button" class="totm-drag-tool totm-drag-swap ${hasAlt()?"is-configured":""}" title="Swap image" ${hasAlt()?"":"disabled"}><i class="fas fa-repeat"></i></button>
+      <button type="button" class="totm-drag-tool totm-drag-alt-image ${hasAlt()?"is-configured":""}" title="${hasAlt()?"Change alternate image":"Set alternate image"}"><i class="fas fa-paint-brush"></i></button>`:""}
+      ${typeof onDelete==="function"&&entity?.kind!=="quest"?`<button type="button" class="totm-drag-tool totm-drag-delete" title="Delete"><i class="fas fa-trash"></i></button>`:""}
+    </div>
   </div>`;
-  ghost.style.left=`${getDragLayout().posX}%`;ghost.style.top=`${getDragLayout().posY}%`;ghost.style.transform=`translate(-50%,-50%)`;ghost.style.setProperty("--totm-drag-scale",`${getDragLayout().scale/100}`);
+  const setGhostScale=scale=>{
+    const visualScale=Math.max(MIN_STAGE_ENTITY_SCALE,Math.min(MAX_STAGE_ENTITY_SCALE,Number(scale)||100))/100;
+    ghost.style.setProperty("--totm-drag-scale",`${visualScale}`);
+    ghost.style.setProperty("--totm-drag-control-scale",`${1/visualScale}`);
+  };
+  ghost.style.left=`${getDragLayout().posX}%`;ghost.style.top=`${getDragLayout().posY}%`;ghost.style.transform=`translate(-50%,-50%)`;setGhostScale(getDragLayout().scale);
   main.appendChild(ghost);
   const dragImgEl=ghost.querySelector(".totm-drag-visual img");
   const swapBtn=ghost.querySelector(".totm-drag-swap");
@@ -1403,7 +1409,7 @@ function openDragPos(entity,scene,d,onDone,onDelete){
   function onMove(e){if(!dragging)return;const r=main.getBoundingClientRect();const nx=startLeft+(e.clientX-startX),ny=startTop+(e.clientY-startY);const posX=Math.max(0,Math.min(100,(nx/r.width)*100)),posY=Math.max(0,Math.min(100,(ny/r.height)*100));if(canSetAltImage)setSceneEntityLayout(entity,{posX,posY});else{entity.posX=posX;entity.posY=posY;}ghost.style.left=`${posX}%`;ghost.style.top=`${posY}%`;}
   function onUp(){dragging=false;}
 
-  ghost.addEventListener("wheel",e=>{e.preventDefault();const layout=getDragLayout();const scale=Math.max(MIN_STAGE_ENTITY_SCALE,Math.min(MAX_STAGE_ENTITY_SCALE,(layout.scale||100)+(e.deltaY<0?5:-5)));if(canSetAltImage)setSceneEntityLayout(entity,{scale});else entity.scale=scale;ghost.style.setProperty("--totm-drag-scale",`${scale/100}`);});
+  ghost.addEventListener("wheel",e=>{e.preventDefault();const layout=getDragLayout();const scale=Math.max(MIN_STAGE_ENTITY_SCALE,Math.min(MAX_STAGE_ENTITY_SCALE,(layout.scale||100)+(e.deltaY<0?5:-5)));if(canSetAltImage)setSceneEntityLayout(entity,{scale});else entity.scale=scale;setGhostScale(scale);});
 
   // Done button overlay
   const doneBtn=document.createElement("button");doneBtn.textContent="Done";doneBtn.style.cssText="position:fixed;bottom:20px;left:50%;transform:translateX(-50%);z-index:200;padding:8px 24px;font-size:14px;font-weight:700;background:var(--totm-gold);color:#000;border:none;border-radius:6px;cursor:pointer;";
