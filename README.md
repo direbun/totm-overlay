@@ -17,6 +17,7 @@ It adds:
 ## Foundry Version
 
 - Foundry VTT v13
+- Current module version: `3.0.0`
 
 ## Recommended Setup
 
@@ -27,15 +28,21 @@ It adds:
 
 ## Installation
 
-Once you publish this module to GitHub, replace the placeholder URLs in your release manifest and use the raw `module.json` URL in Foundry's module installer.
+Use this manifest URL in Foundry's module installer:
+
+`https://github.com/direbun/totm-overlay/releases/latest/download/module.json`
 
 ## Release Notes
 
-Before publishing:
+Current release: `3.0.0`
 
-1. Upload the module contents as a release zip.
-2. Update the manifest URLs in `module.release-template.json`.
-3. Copy those final URL fields into `module.json` if you want the checked-in manifest to be the public release manifest.
+- Unified Background Library replacing separate Choose/Manage flows
+- Compact toolbar, categories dropdown, inline background renaming, and Fill to Scene toggles
+- Background name cleanup and safer background management
+- Board character placement recovery and visibility fixes
+- Performance improvements, including scheduled refreshes and duplicate listener cleanup
+- HTML escaping and safety hardening
+- Foundry VTT v13 compatibility retained
 
 ## Included Files
 
