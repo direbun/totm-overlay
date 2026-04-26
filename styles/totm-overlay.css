@@ -404,4 +404,149 @@ body.totm-picker-resizing{user-select:none!important;cursor:nwse-resize!importan
 .totm-picker-empty{grid-column:1/-1;padding:16px;text-align:center;color:#b8af9f;border:1px dashed rgba(255,255,255,.12);border-radius:10px;background:rgba(18,22,34,.82)}
 
 .totm-drag-over{outline:2px dashed var(--totm-gold)!important;outline-offset:-3px}
+
+.totm-bg-library-dialog .window-content{display:flex;flex-direction:column;overflow:hidden;padding:10px 12px 12px}
+.totm-bg-library{display:flex;flex-direction:column;gap:10px;height:100%;min-height:0;color:#f2ecdf}
+.totm-bg-library-toolbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.totm-bg-library-search{display:flex;align-items:center;gap:8px;flex:1 1 280px;min-width:220px;padding:0 10px;border:1px solid rgba(255,255,255,.12);border-radius:8px;background:rgba(15,18,28,.94);color:#d8cfbf}
+.totm-bg-library-search input{width:100%;min-width:0;padding:8px 0;border:0;background:transparent;color:#f7f1e8;font:inherit;font-size:12px;outline:none}
+.totm-bg-library-toolbar button,.totm-bg-card-actions button,.totm-bg-detail-actions button{border:1px solid rgba(255,255,255,.12);background:rgba(18,22,34,.96);color:#e6dcc8;border-radius:8px;padding:7px 10px;cursor:pointer;font-family:inherit;font-size:11px;font-weight:800}
+.totm-bg-library-toolbar button:hover,.totm-bg-card-actions button:hover,.totm-bg-detail-actions button:hover{border-color:var(--totm-gold-dim);color:var(--totm-gold)}
+.totm-bg-card-actions button.is-danger{color:#ff9a90;border-color:rgba(160,57,46,.4)}
+.totm-bg-library-main{display:grid;grid-template-columns:minmax(360px,1fr) minmax(280px,360px);gap:12px;min-height:0;flex:1}
+.totm-bg-library-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:12px;align-content:start;overflow:auto;min-height:0;padding:2px}
+.totm-bg-card{display:flex;flex-direction:column;gap:8px;min-height:260px;border:1px solid rgba(255,255,255,.08);border-radius:8px;background:linear-gradient(180deg,rgba(18,22,34,.98),rgba(10,12,20,.98));padding:10px;box-shadow:0 8px 18px rgba(0,0,0,.18)}
+.totm-bg-card.is-current{border-color:var(--totm-gold-dim);box-shadow:0 0 0 1px rgba(201,168,76,.22),0 8px 18px rgba(0,0,0,.18)}
+.totm-bg-card.is-selected{outline:2px solid color-mix(in srgb,var(--totm-gold) 65%, transparent);outline-offset:-2px}
+.totm-bg-card-thumb{position:relative;width:100%;aspect-ratio:16/10;border:1px solid rgba(255,255,255,.1);border-radius:6px;background-color:rgba(255,255,255,.04);overflow:hidden}
+.totm-bg-card-thumb span{position:absolute;top:8px;right:8px;padding:3px 8px;border-radius:999px;background:var(--totm-gold);color:#111;font-size:10px;font-weight:900}
+.totm-bg-card-body{display:flex;flex-direction:column;gap:3px;min-width:0}
+.totm-bg-card-title{font-size:13px;font-weight:900;line-height:1.2;color:#f8f2ea;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.totm-bg-card-meta,.totm-bg-card-frame{font-size:10px;line-height:1.35;color:#b8af9f;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.totm-bg-card-actions{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:auto}
+.totm-bg-card-actions button{padding:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.totm-bg-library-details{min-height:0;overflow:auto;border:1px solid rgba(255,255,255,.08);border-radius:8px;background:rgba(10,12,20,.72);padding:10px}
+.totm-bg-detail-form{display:flex;flex-direction:column;gap:10px}
+.totm-bg-detail-preview{width:100%;aspect-ratio:16/10;border:1px solid rgba(255,255,255,.1);border-radius:6px;background-color:rgba(255,255,255,.04)}
+.totm-bg-detail-form .form-group{display:flex;flex-direction:column;gap:4px;margin:0}
+.totm-bg-detail-form label{font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:1px;color:var(--totm-gold)}
+.totm-bg-detail-form input[type="text"],.totm-bg-detail-form input:not([type]),.totm-bg-detail-form textarea{width:100%;border:1px solid rgba(255,255,255,.12);border-radius:6px;background:rgba(0,0,0,.24);color:#f7f1e8;padding:6px 8px;font:inherit;font-size:12px}
+.totm-bg-detail-ranges{display:flex;flex-direction:column;gap:8px}
+.totm-bg-detail-ranges label{display:flex;flex-direction:column;gap:4px}
+.totm-bg-detail-check{flex-direction:row!important;align-items:center;text-transform:none!important;letter-spacing:0!important;color:#d8cfbf!important}
+.totm-bg-detail-actions{display:grid;grid-template-columns:1fr;gap:6px}
+.totm-bg-library-empty,.totm-bg-detail-empty{padding:18px;text-align:center;color:#b8af9f;border:1px dashed rgba(255,255,255,.12);border-radius:8px;background:rgba(18,22,34,.72)}
+
+.totm-onboarding{position:absolute;inset:0;z-index:5;display:flex;align-items:center;justify-content:center;padding:24px;pointer-events:none}
+.totm-onboarding-panel{width:min(520px,90%);border:1px solid rgba(255,255,255,.12);border-radius:8px;background:rgba(10,10,18,.88);box-shadow:0 18px 48px rgba(0,0,0,.38);backdrop-filter:blur(8px);padding:16px;pointer-events:auto}
+.totm-onboarding-panel h2{margin:0 0 12px;font-size:18px;line-height:1.2;color:#fff}
+.totm-onboarding-actions{display:grid;gap:8px}
+.totm-onboarding-actions button{display:grid;grid-template-columns:24px minmax(0,1fr);align-items:center;gap:10px;text-align:left;border:1px solid rgba(255,255,255,.12);border-radius:6px;background:rgba(255,255,255,.05);color:var(--totm-text);padding:8px 10px;cursor:pointer;font-family:inherit;font-weight:800}
+.totm-onboarding-actions button:hover{border-color:var(--totm-gold-dim);background:var(--totm-gold-glow)}
+.totm-onboarding-actions span{display:flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:999px;background:var(--totm-gold);color:#111;font-size:11px;font-weight:900}
+
+.totm-help{display:flex;flex-direction:column;gap:8px;min-width:min(520px,80vw)}
+.totm-help h2{margin:0 0 4px;font-size:18px}
+.totm-help-row{display:grid;grid-template-columns:190px minmax(0,1fr);gap:10px;padding:7px 0;border-bottom:1px solid rgba(255,255,255,.08)}
+.totm-help-row strong{color:var(--totm-gold)}
+.totm-help-row span{color:#d8cfbf}
+
+#totm-ui.totm-performance-mode *,
+#totm-ui.totm-performance-mode *::before,
+#totm-ui.totm-performance-mode *::after{animation:none!important;transition:none!important;backdrop-filter:none!important}
+#totm-ui.totm-performance-mode .totm-scene-img img,
+#totm-ui.totm-performance-mode .totm-map-pin-core,
+#totm-ui.totm-performance-mode .totm-enemy-card,
+#totm-ui.totm-performance-mode .totm-actor-card,
+#totm-ui.totm-performance-mode #totm-clock-dock,
+#totm-ui.totm-performance-mode #totm-art-display img{filter:none!important;box-shadow:none!important}
+#totm-ui.totm-performance-mode .totm-scene-enemy.enemy-targeted::before,
+#totm-ui.totm-performance-mode .totm-actor-card.externally-targeted::after,
+#totm-ui.totm-performance-mode .totm-enemy-card.enemy-targeted::after{display:none!important}
+@media (prefers-reduced-motion: reduce){
+  #totm-ui *,#totm-ui *::before,#totm-ui *::after{animation:none!important;transition:none!important}
+}
+@media(max-width:900px){
+  .totm-bg-library-main{grid-template-columns:1fr}
+  .totm-bg-library-details{min-height:320px}
+  .totm-help-row{grid-template-columns:1fr}
+}
 @media(max-width:1100px){#totm-actor-panel{width:240px;min-width:240px}}
+
+.totm-bg-choose-dialog,.totm-bg-manager-dialog,.totm-bg-library-dialog{max-width:calc(100vw - 48px)!important;max-height:calc(100vh - 48px)!important}
+.totm-bg-choose-dialog .window-content,.totm-bg-manager-dialog .window-content,.totm-bg-library-dialog .window-content{display:flex;flex-direction:column;overflow:hidden;padding:10px 12px 12px}
+.totm-bg-choose-dialog .dialog-buttons,.totm-bg-manager-dialog .dialog-buttons,.totm-bg-library-dialog .dialog-buttons{display:none!important}
+.totm-bg-library-focus{box-shadow:0 0 0 2px rgba(201,168,76,.55),0 18px 48px rgba(0,0,0,.42)!important}
+.totm-bg-window{display:flex;flex-direction:column;gap:10px;width:100%;height:100%;min-height:0;color:#f2ecdf}
+.totm-bg-header{display:flex;flex-direction:column;gap:10px;flex:0 0 auto;margin-bottom:4px}
+.totm-bg-toolbar{display:flex;align-items:center;gap:10px;flex:0 0 auto;flex-wrap:wrap;min-width:0}
+.totm-bg-search{display:flex;align-items:center;gap:8px;flex:1 1 280px;min-width:240px;height:34px;padding:0 10px;border:1px solid rgba(255,255,255,.12);border-radius:8px;background:rgba(15,18,28,.94);color:#d8cfbf}
+.totm-bg-search input{width:100%;min-width:0;border:0;background:transparent;color:#f7f1e8;font:inherit;font-size:12px;outline:none}
+.totm-bg-filter{position:relative;flex:0 0 auto;z-index:20}
+.totm-bg-filter-btn{width:auto!important;min-width:0!important;max-width:none!important;height:34px;display:inline-flex!important;align-items:center;justify-content:center;gap:7px;border:1px solid rgba(255,255,255,.12);border-radius:8px;background:rgba(18,22,34,.96);color:#e6dcc8;padding:0 11px!important;cursor:pointer;font-family:inherit;font-size:11px;font-weight:800;white-space:nowrap;line-height:1}
+.totm-bg-filter-btn:hover,.totm-bg-filter-btn.is-open{border-color:var(--totm-gold-dim);color:var(--totm-gold)}
+.totm-bg-filter-menu{position:absolute;top:calc(100% + 6px);left:0;min-width:220px;max-height:280px;overflow:auto;z-index:60;border:1px solid rgba(255,255,255,.14);border-radius:8px;background:rgba(12,15,24,.98);box-shadow:0 14px 38px rgba(0,0,0,.42);padding:6px}
+.totm-bg-filter-menu[hidden]{display:none!important}
+.totm-bg-filter-menu button{width:100%!important;display:flex!important;align-items:center;justify-content:space-between;gap:10px;border:0;border-radius:6px;background:transparent;color:#d8cfbf;padding:7px 8px!important;text-align:left;font-family:inherit;font-size:11px;font-weight:800;cursor:pointer}
+.totm-bg-filter-menu button:hover,.totm-bg-filter-menu button.is-active{background:rgba(201,168,76,.13);color:var(--totm-gold)}
+.totm-bg-actions{display:flex;align-items:center;justify-content:flex-end;gap:8px;flex:0 0 auto;flex-wrap:wrap;min-width:0}
+.totm-bg-action{width:auto!important;min-width:0!important;max-width:none!important;flex:0 0 auto!important;height:34px;display:inline-flex!important;align-items:center;justify-content:center;gap:6px;border:1px solid rgba(255,255,255,.12);border-radius:8px;background:rgba(18,22,34,.96);color:#e6dcc8;padding:0 11px!important;cursor:pointer;font-family:inherit;font-size:11px;font-weight:800;white-space:nowrap;line-height:1}
+.totm-bg-action:hover{border-color:var(--totm-gold-dim);color:var(--totm-gold)}
+.totm-bg-action.primary{font-weight:900;border-color:rgba(201,168,76,.35)}
+.totm-bg-action.subtle{opacity:.86}
+.totm-bg-action.icon-only{width:36px!important;padding:0!important}
+.totm-bg-categories{display:flex;align-items:center;min-height:30px;overflow:hidden}
+.totm-bg-category-chips{display:flex;align-items:center;gap:8px;flex:0 1 auto;max-width:100%;overflow:auto;padding-bottom:1px}
+.totm-bg-chip{width:auto!important;min-width:0!important;max-width:none!important;height:30px;display:inline-flex!important;align-items:center;justify-content:center;flex:0 0 auto!important;white-space:nowrap;border:1px solid rgba(255,255,255,.12);border-radius:999px;background:rgba(18,22,34,.92);color:#d8cfbf;padding:0 12px!important;cursor:pointer;font-family:inherit;font-size:10px;font-weight:800;line-height:1}
+.totm-bg-chip:hover{border-color:var(--totm-gold-dim);color:#fff}
+.totm-bg-chip.is-active{background:var(--totm-gold-glow);border-color:var(--totm-gold-dim);color:var(--totm-gold)}
+.totm-bg-tool{height:34px;display:inline-flex;align-items:center;justify-content:center;gap:6px;border:1px solid rgba(255,255,255,.12);border-radius:8px;background:rgba(18,22,34,.96);color:#e6dcc8;padding:0 10px;cursor:pointer;font-family:inherit;font-size:11px;font-weight:800;white-space:nowrap}
+.totm-bg-tool:hover{border-color:var(--totm-gold-dim);color:var(--totm-gold)}
+.totm-bg-grid{display:grid;align-content:start;gap:14px;flex:1;min-height:0;overflow:auto;padding:2px 4px 4px 2px}
+.totm-bg-choose-grid{grid-template-columns:repeat(auto-fill,minmax(180px,1fr))}
+.totm-bg-manager-grid{grid-template-columns:repeat(auto-fill,minmax(220px,1fr))}
+.totm-bg-library-grid{grid-template-columns:repeat(auto-fill,minmax(190px,1fr))}
+.totm-bg-card{min-height:0!important;border-radius:8px!important;padding:8px!important;gap:7px!important}
+.totm-bg-choose-card{display:flex;flex-direction:column;text-align:left;cursor:pointer;color:#f2ecdf;font-family:inherit}
+.totm-bg-manager-card,.totm-bg-library-card{display:flex;flex-direction:column;cursor:pointer}
+.totm-bg-card.is-current{border-color:var(--totm-gold)!important;box-shadow:0 0 0 1px rgba(201,168,76,.38),0 8px 18px rgba(0,0,0,.18)!important}
+.totm-bg-card-thumb{height:112px;aspect-ratio:auto!important;display:block;cursor:pointer;background-color:rgba(255,255,255,.04);background-position:center;background-size:cover}
+.totm-bg-manager-card .totm-bg-card-thumb,.totm-bg-library-card .totm-bg-card-thumb{height:118px}
+.totm-bg-card-thumb span{top:6px!important;right:6px!important;padding:2px 7px!important;font-size:9px!important}
+.totm-bg-card-body{gap:2px!important}
+.totm-bg-card-title{display:flex!important;align-items:center;gap:6px;min-width:0;max-width:100%;font-size:12px!important;line-height:1.2!important;white-space:nowrap!important;overflow:hidden!important}
+.totm-bg-card-title-text{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.totm-bg-title-rename{flex:0 0 auto;width:20px;height:20px;border:0;background:transparent;color:#aFA792;cursor:pointer;padding:0;border-radius:5px}
+.totm-bg-title-rename:hover{color:var(--totm-gold);background:rgba(255,255,255,.08)}
+.totm-bg-rename-input{width:100%;min-width:0;border:1px solid var(--totm-gold-dim);border-radius:5px;background:rgba(0,0,0,.34);color:#f7f1e8;padding:3px 5px;font:inherit;font-size:12px;outline:none}
+.totm-bg-card-meta,.totm-bg-card-frame{font-size:10px!important;white-space:nowrap!important;overflow:hidden!important;text-overflow:ellipsis!important}
+.totm-bg-fill-toggle{display:inline-flex;align-items:center;gap:6px;width:max-content;max-width:100%;margin-top:3px;color:#d8cfbf;font-size:10px;font-weight:900;line-height:1;cursor:pointer;border:1px solid rgba(255,255,255,.1);border-radius:999px;background:rgba(255,255,255,.04);padding:4px 8px}
+.totm-bg-fill-toggle:hover{border-color:var(--totm-gold-dim);color:var(--totm-gold)}
+.totm-bg-fill-toggle input{width:13px;height:13px;margin:0;accent-color:var(--totm-gold);cursor:pointer}
+.totm-bg-card-actions{display:grid!important;grid-template-columns:repeat(5,minmax(0,1fr))!important;gap:5px!important;margin-top:2px!important}
+.totm-bg-card-actions button{height:28px;min-width:0;padding:0!important;display:flex;align-items:center;justify-content:center;border-radius:6px!important}
+.totm-bg-card-actions button span{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+.totm-bg-card-actions button i{font-size:11px}
+.totm-bg-card-actions button.is-danger{color:#ff9a90!important;border-color:rgba(160,57,46,.38)!important;background:rgba(80,20,18,.3)!important}
+.totm-bg-empty{grid-column:1/-1;padding:18px;text-align:center;color:#b8af9f;border:1px dashed rgba(255,255,255,.12);border-radius:8px;background:rgba(18,22,34,.72)}
+.totm-bg-editor-modal{display:flex;flex-direction:column;gap:10px;min-width:min(480px,82vw);max-height:calc(100vh - 180px);overflow:auto;padding-right:3px}
+.totm-bg-editor-preview{height:220px;border:1px solid rgba(255,255,255,.12);border-radius:8px;background-color:rgba(255,255,255,.04)}
+.totm-bg-editor-modal .form-group{display:flex;flex-direction:column;gap:4px;margin:0}
+.totm-bg-editor-modal label,.totm-bg-editor-framing summary{font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:1px;color:var(--totm-gold)}
+.totm-bg-editor-modal input:not([type]),.totm-bg-editor-modal input[type="text"],.totm-bg-editor-modal textarea{width:100%;border:1px solid rgba(255,255,255,.12);border-radius:6px;background:rgba(0,0,0,.24);color:#f7f1e8;padding:6px 8px;font:inherit;font-size:12px}
+.totm-bg-editor-framing{border:1px solid rgba(255,255,255,.1);border-radius:8px;padding:8px;background:rgba(255,255,255,.03)}
+.totm-bg-editor-framing summary{cursor:pointer;margin-bottom:8px}
+.totm-bg-editor-framing label{display:flex;flex-direction:column;gap:4px;margin-top:7px}
+.totm-bg-editor-framing .totm-bg-editor-check{flex-direction:row;align-items:center;text-transform:none;letter-spacing:0;color:#d8cfbf}
+@media(max-width:760px){
+  .totm-bg-search{flex:1 1 100%;width:100%}
+  .totm-bg-actions{justify-content:flex-start}
+  .totm-bg-action{flex:0 0 auto!important}
+  .totm-bg-choose-grid,.totm-bg-manager-grid,.totm-bg-library-grid{grid-template-columns:repeat(auto-fill,minmax(150px,1fr))}
+  .totm-bg-card-thumb,.totm-bg-manager-card .totm-bg-card-thumb,.totm-bg-library-card .totm-bg-card-thumb{height:96px}
+  .totm-bg-editor-preview{height:160px}
+}
+@media(max-width:430px){
+  .totm-bg-action span{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+  .totm-bg-action{width:36px!important;padding:0!important}
+}

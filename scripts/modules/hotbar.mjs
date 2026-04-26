@@ -6,6 +6,9 @@ function esc(value){
     .replace(/"/g,"&quot;")
     .replace(/'/g,"&#39;");
 }
+function cssUrl(value){
+  return `url("${String(value ?? "").replace(/\\/g,"/").replace(/"/g,"%22").replace(/[\r\n\f]/g,"")}")`;
+}
 
 function getPage(){
   return Math.max(1, Number(ui.hotbar?.page) || 1);
@@ -132,7 +135,7 @@ export function renderTotmHotbar(){
     const img = macro?.img ? esc(macro.img) : "";
     const title = macro ? name : `Slot ${label}`;
     const inner = macro
-      ? `<span class="totm-hotbar-icon" style="background-image:url('${img}')"></span><span class="totm-hotbar-name">${name}</span>`
+      ? `<span class="totm-hotbar-icon" style="${esc(`background-image:${cssUrl(macro.img)}`)}"></span><span class="totm-hotbar-name">${name}</span>`
       : `<span class="totm-hotbar-empty">Drop</span>`;
     return `<button type="button" class="totm-hotbar-btn ${macro ? "has-macro" : "is-empty"}" data-slot="${slot}" title="${title}"><span class="totm-hotbar-slotno">${label}</span>${inner}</button>`;
   }).join("");

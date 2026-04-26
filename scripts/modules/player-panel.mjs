@@ -1,5 +1,9 @@
+const esc=value=>foundry.utils.escapeHTML(String(value??""));
+const attr=esc;
+const cssUrl=value=>`url("${String(value??"").replace(/\\/g,"/").replace(/"/g,"%22").replace(/[\r\n\f]/g,"")}")`;
+
 export function renderPlayerCards({d,scene,deps}){
-  const {isGM,getConds,MODULE_ID,getActorStatus,isActorTargeted,getRes,getImg,getFabulaPoints,rPath,renderBars,canControlActorPin}=deps;
+  const {isGM,getConds,MODULE_ID,getActorStatus,isActorTargeted,getRes,getImg,getFabulaPoints,rPath,renderBars,canControlActorPin,actorById}=deps;
   const actors=isGM()?d.actors:d.actors.filter(a=>a.visible!==false);
   const inCombat=!!d.combatActive;
   if(!actors.length)return `<div class="totm-actor-empty"><i class="fas fa-users"></i><span>Drag players from sidebar</span></div>`;
@@ -7,7 +11,7 @@ export function renderPlayerCards({d,scene,deps}){
   const conds=getConds();
   const canAfk=game.settings.get(MODULE_ID,"playersCanAfk");
   return actors.map((a,i)=>{
-    const actorDoc=game.actors.get(a.id);
+    const actorDoc=actorById?.(a.id)||game.actors.get(a.id);
     const status=getActorStatus(a);
     const isTargeted=isActorTargeted(a.id,scene);
     const sc=status?`has-status-${status}`:"";
@@ -27,7 +31,7 @@ export function renderPlayerCards({d,scene,deps}){
     const io=actorDoc?.isOwner;
     const pinOwner=canControlActorPin(a.id);
     const overlay=status
-      ? `<div class="totm-status-overlay status-${status}"><span class="totm-status-label">${status.toUpperCase()}</span></div>`
+      ? `<div class="totm-status-overlay status-${attr(status)}"><span class="totm-status-label">${esc(status.toUpperCase())}</span></div>`
       : (isTargeted?`<div class="totm-status-overlay status-targeted"><span class="totm-status-label">TARGETED</span></div>`:"");
     const gmBtns=ce
       ? `<button data-act="adjust"><i class="fas fa-cog"></i></button><button data-act="highlight"><i class="fas fa-star"></i></button><button data-act="target" class="${isTargeted?"active-target":""}" title="Target Player"><i class="fas fa-crosshairs"></i></button><button data-act="pin" class="${a.pinVisible?"active-pin":""}" title="Toggle Map Pin"><i class="fas fa-map-pin"></i></button><button data-act="pin-cfg" title="Pin Settings"><i class="fas fa-circle-dot"></i></button><button data-act="toggle-vis"><i class="fas fa-eye${a.visible===false?"-slash":""}"></i></button><button data-act="remove" class="act-danger"><i class="fas fa-trash"></i></button>`
@@ -35,7 +39,7 @@ export function renderPlayerCards({d,scene,deps}){
     const ownerBtns=!ce&&pinOwner
       ? `<button data-act="pin" class="${a.pinVisible?"active-pin":""}" title="Toggle Map Pin"><i class="fas fa-map-pin"></i></button><button data-act="pin-cfg" title="Pin Settings"><i class="fas fa-circle-dot"></i></button>`
       : "";
-    return `<div class="${cls}" data-idx="${i}" data-actor-id="${a.id||""}" draggable="true">${overlay}${ac.length?`<div class="totm-conditions">${ac.map(c=>{const df=conds.find(x=>x.id===c);return df?`<span class="totm-condition-badge ${df.color}"><i class="${df.icon}"></i> ${df.label}</span>`:"";}).join("")}</div>`:""}${(gmBtns||ownerBtns)?`<div class="totm-actor-btns">${gmBtns||ownerBtns}</div>`:""}<div class="totm-player-shell"><div class="totm-player-portrait-col"><div class="totm-player-portrait-frame"><div class="totm-card-bg" style="background-image:url('${bg}');background-position:${bgOffsetX}% ${bgOffsetY}%;background-size:${bgSize}"></div><div class="totm-card-overlay"></div></div>${fp!=null?`<div class="totm-fp-panel" title="Fabula Points"><span class="totm-fp-panel-label">FP</span><span class="totm-fp-panel-value">${fp}</span></div>`:""}</div><div class="totm-player-stats-col"><div class="totm-card-content"><div class="totm-actor-name">${a.name}</div>${sub?`<div class="totm-actor-subtitle">${sub}</div>`:""}${renderBars(res,{kind:"player"})}</div></div></div>${((io&&canAfk)||ce)?`<div class="totm-actor-status-bar">${(io&&canAfk)?`<button data-status="afk" class="${status==="afk"?"active-status":""}">AFK</button>`:""} ${ce?`<button data-status="targeted" class="${status==="targeted"?"active-status":""}">TGT</button><button data-status="missing" class="${status==="missing"?"active-status":""}">MIA</button><button data-act="conditions"><i class="fas fa-list"></i></button>`:""}</div>`:""}</div>`;
+    return `<div class="${attr(cls)}" data-idx="${i}" data-actor-id="${attr(a.id||"")}" draggable="true">${overlay}${ac.length?`<div class="totm-conditions">${ac.map(c=>{const df=conds.find(x=>x.id===c);return df?`<span class="totm-condition-badge ${attr(df.color)}"><i class="${attr(df.icon)}"></i> ${esc(df.label)}</span>`:"";}).join("")}</div>`:""}${(gmBtns||ownerBtns)?`<div class="totm-actor-btns">${gmBtns||ownerBtns}</div>`:""}<div class="totm-player-shell"><div class="totm-player-portrait-col"><div class="totm-player-portrait-frame"><div class="totm-card-bg" style="${attr(`background-image:${cssUrl(bg)};background-position:${bgOffsetX}% ${bgOffsetY}%;background-size:${bgSize}`)}"></div><div class="totm-card-overlay"></div></div>${fp!=null?`<div class="totm-fp-panel" title="Fabula Points"><span class="totm-fp-panel-label">FP</span><span class="totm-fp-panel-value">${fp}</span></div>`:""}</div><div class="totm-player-stats-col"><div class="totm-card-content"><div class="totm-actor-name">${esc(a.name)}</div>${sub?`<div class="totm-actor-subtitle">${esc(sub)}</div>`:""}${renderBars(res,{kind:"player"})}</div></div></div>${((io&&canAfk)||ce)?`<div class="totm-actor-status-bar">${(io&&canAfk)?`<button data-status="afk" class="${status==="afk"?"active-status":""}">AFK</button>`:""} ${ce?`<button data-status="targeted" class="${status==="targeted"?"active-status":""}">TGT</button><button data-status="missing" class="${status==="missing"?"active-status":""}">MIA</button><button data-act="conditions"><i class="fas fa-list"></i></button>`:""}</div>`:""}</div>`;
   }).join("");
 }
 
@@ -45,6 +49,8 @@ export function bindPlayerPanelEvents({el,scene,d,deps}){
     saveData,
     emit,
     refreshUI,
+    scheduleRefresh,
+    updateTargetHighlights,
     targetRandomPlayer,
     pickActor,
     togglePlayerTarget,
@@ -53,8 +59,10 @@ export function bindPlayerPanelEvents({el,scene,d,deps}){
     openActorCfg,
     togCondDD,
     makeEntry,
-    toggleActorAfkStatus
+    toggleActorAfkStatus,
+    confirmDestructive
   }=deps;
+  const refresh=()=>scheduleRefresh?scheduleRefresh(scene):refreshUI(scene);
 
   el.querySelector("#totm-random-player")?.addEventListener("click",async()=>{await targetRandomPlayer(scene,d);});
   el.querySelector("#totm-add-actor")?.addEventListener("click",()=>pickActor(scene,d));
@@ -75,7 +83,7 @@ export function bindPlayerPanelEvents({el,scene,d,deps}){
       }
       await saveData(scene,d);
       emit();
-      refreshUI(scene);
+      refresh();
       return;
     }
 
@@ -92,7 +100,7 @@ export function bindPlayerPanelEvents({el,scene,d,deps}){
       const act=ab.dataset.act;
       if(act==="target"){
         if(!await togglePlayerTarget(d.actors[i].id,scene))ui.notifications.warn("No scene token found for that player.");
-        refreshUI(scene);
+        updateTargetHighlights?.(scene,d);
         return;
       }
       if(act==="pin"){
@@ -104,7 +112,11 @@ export function bindPlayerPanelEvents({el,scene,d,deps}){
         return;
       }
       if(!isGM())return;
-      if(act==="remove")d.actors.splice(i,1);
+      if(act==="remove"){
+        const ok=confirmDestructive?await confirmDestructive({title:"Remove Player Card?",content:`${d.actors[i]?.name||"Actor"} will be removed from this TOTM scene.`,yes:"Remove"}):true;
+        if(!ok)return;
+        d.actors.splice(i,1);
+      }
       else if(act==="toggle-vis")d.actors[i].visible=d.actors[i].visible===false;
       else if(act==="highlight")d.actors[i].highlighted=!d.actors[i].highlighted;
       else if(act==="adjust"){
@@ -113,7 +125,7 @@ export function bindPlayerPanelEvents({el,scene,d,deps}){
       }
       await saveData(scene,d);
       emit();
-      refreshUI(scene);
+      refresh();
       return;
     }
 
@@ -149,7 +161,7 @@ export function bindPlayerPanelEvents({el,scene,d,deps}){
         d.actors.push(makeEntry(a,d.actors.length));
         await saveData(scene,d);
         emit();
-        refreshUI(scene);
+        refresh();
         ui.notifications.info(`Added ${a.name}.`);
       });
     }

@@ -1,3 +1,7 @@
+const esc=value=>foundry.utils.escapeHTML(String(value??""));
+const attr=esc;
+const cssUrl=value=>`url("${String(value??"").replace(/\\/g,"/").replace(/"/g,"%22").replace(/[\r\n\f]/g,"")}")`;
+
 export function buildStageSceneImages({d,scene,deps}){
   const {
     getPinImage,
@@ -25,34 +29,34 @@ export function buildStageSceneImages({d,scene,deps}){
   (d.npcs||[]).filter(n=>n.visible).forEach((n,i)=>{
     const layout=getSceneEntityLayout(n);
     const fadeClass=n.imageSwapAt&&Date.now()-(n.imageSwapAt||0)<SCENE_IMAGE_SWAP_MS+100?"is-image-swapping":"";
-    sceneImgs.push(`<div class="totm-scene-img totm-scene-npc ${fadeClass}" data-nidx="${i}" style="left:${layout.posX}%;top:${layout.posY}%;transform:translate(-50%,-50%) scale(${layout.scale/100});"><img src="${getSceneEntityImage(n)}" alt="${n.name}"/></div>`);
+    sceneImgs.push(`<div class="totm-scene-img totm-scene-npc ${fadeClass}" data-nidx="${i}" style="left:${layout.posX}%;top:${layout.posY}%;transform:translate(-50%,-50%) scale(${layout.scale/100});"><img src="${attr(getSceneEntityImage(n))}" alt="${attr(n.name)}"/></div>`);
   });
   backgroundProps.forEach((p,i)=>{
     const layout=getSceneEntityLayout(p);
     const fadeClass=p.imageSwapAt&&Date.now()-(p.imageSwapAt||0)<SCENE_IMAGE_SWAP_MS+100?"is-image-swapping":"";
-    sceneImgs.push(`<div class="totm-scene-img totm-scene-prop ${fadeClass}" data-pidx="${i}" data-prop-id="${p.id||""}" style="left:${layout.posX}%;top:${layout.posY}%;transform:translate(-50%,-50%) scale(${layout.scale/100});"><img src="${getSceneEntityImage(p)}" alt="${p.name||"Prop"}"/></div>`);
+    sceneImgs.push(`<div class="totm-scene-img totm-scene-prop ${fadeClass}" data-pidx="${i}" data-prop-id="${attr(p.id||"")}" style="left:${layout.posX}%;top:${layout.posY}%;transform:translate(-50%,-50%) scale(${layout.scale/100});"><img src="${attr(getSceneEntityImage(p))}" alt="${attr(p.name||"Prop")}"/></div>`);
   });
   backgroundQuestPins.forEach((p,i)=>{
     const img=p.image||getQuestPinImage?.(p.type||"quest");
     const questName=foundry.utils.escapeHTML(String(p.name||p.label||"Quest"));
-    sceneImgs.push(`<div class="totm-scene-img totm-scene-quest" data-qidx="${i}" data-quest-id="${p.id||""}" title="${questName}" aria-label="${questName}" style="left:${p.posX??50}%;top:${p.posY??50}%;transform:translate(-50%,-50%) scale(${(p.scale??100)/100});"><img src="${img}" alt="${questName}"/></div>`);
+    sceneImgs.push(`<div class="totm-scene-img totm-scene-quest" data-qidx="${i}" data-quest-id="${attr(p.id||"")}" title="${questName}" aria-label="${questName}" style="left:${p.posX??50}%;top:${p.posY??50}%;transform:translate(-50%,-50%) scale(${(p.scale??100)/100});"><img src="${attr(img)}" alt="${questName}"/></div>`);
   });
   if(d.boardActorsVisible!==false){
     (d.boardActors||[]).forEach((entry,i)=>{
       const img=getStageActorImage(entry,d,{inCombat:!!d.combatActive});
       const layout=getStageActorLayout(entry,{inCombat:!!d.combatActive});
-      sceneImgs.push(`<div class="totm-scene-img totm-stage-actor" data-baidx="${i}" data-board-actor-id="${entry.id||""}" data-actor-id="${entry.actorId||""}" style="left:${layout.posX}%;top:${layout.posY}%;transform:translate(-50%,-50%) scale(${layout.scale/100});"><img src="${img}" alt="${entry.name||"Character"}"/></div>`);
+      sceneImgs.push(`<div class="totm-scene-img totm-stage-actor" data-baidx="${i}" data-board-actor-id="${attr(entry.id||"")}" data-actor-id="${attr(entry.actorId||"")}" style="left:${layout.posX}%;top:${layout.posY}%;transform:translate(-50%,-50%) scale(${layout.scale/100});"><img src="${attr(img)}" alt="${attr(entry.name||"Character")}"/></div>`);
     });
   }
   (d.actors||[]).forEach((a,i)=>{
     if(!a.pinVisible)return;
     const pinImg=getPinImage(a),pinSize=Number(a.pinSize||64),pinColor=getActorPinColor(a.id);
-    sceneImgs.push(`<div class="totm-map-pin ${canControlActorPin(a.id)?"is-owner":""}" data-pin-owner="actor" data-actor-id="${a.id}" data-idx="${i}" style="--totm-pin-color:${pinColor};left:${a.pinX??50}%;top:${a.pinY??50}%;width:${pinSize}px;height:${pinSize}px;"><div class="totm-map-pin-core" style="background-image:url('${pinImg}')"></div></div>`);
+    sceneImgs.push(`<div class="totm-map-pin ${canControlActorPin(a.id)?"is-owner":""}" data-pin-owner="actor" data-actor-id="${attr(a.id)}" data-idx="${i}" style="${attr(`--totm-pin-color:${pinColor};left:${a.pinX??50}%;top:${a.pinY??50}%;width:${pinSize}px;height:${pinSize}px;`)}"><div class="totm-map-pin-core" style="${attr(`background-image:${cssUrl(pinImg)}`)}"></div></div>`);
   });
   if(d.gmPin?.visible){
     const pinImg=d.gmPin.image||game.users?.activeGM?.avatar||game.user.avatar||"icons/svg/mystery-man.svg";
     const pinSize=Number(d.gmPin.size||64),pinColor=getGmPinColor();
-    sceneImgs.push(`<div class="totm-map-pin gm-pin ${canControlGmPin()?"is-owner":""}" data-pin-owner="gm" style="--totm-pin-color:${pinColor};left:${d.gmPin.posX??50}%;top:${d.gmPin.posY??50}%;width:${pinSize}px;height:${pinSize}px;"><div class="totm-map-pin-core" style="background-image:url('${pinImg}')"></div></div>`);
+    sceneImgs.push(`<div class="totm-map-pin gm-pin ${canControlGmPin()?"is-owner":""}" data-pin-owner="gm" style="${attr(`--totm-pin-color:${pinColor};left:${d.gmPin.posX??50}%;top:${d.gmPin.posY??50}%;width:${pinSize}px;height:${pinSize}px;`)}"><div class="totm-map-pin-core" style="${attr(`background-image:${cssUrl(pinImg)}`)}"></div></div>`);
   }
   const enemyTargets=scene?getTargets(scene):[];
   const now=Date.now();
@@ -63,7 +67,7 @@ export function buildStageSceneImages({d,scene,deps}){
     const img=getSceneEntityImage?.(e)||a?.prototypeToken?.texture?.src||a?.img||e.image||"icons/svg/mystery-man.svg";
     const fadeClass=e.transitionState&&now-(e.transitionAt||0)<ENEMY_FADE_MS+150?`is-${e.transitionState}`:"";
     const imageFadeClass=e.imageSwapAt&&Date.now()-(e.imageSwapAt||0)<SCENE_IMAGE_SWAP_MS+100?"is-image-swapping":"";
-    sceneImgs.push(`<div class="totm-scene-img totm-scene-enemy ${enemyTargets.includes(enemyTargetId(e))?"enemy-targeted":""} ${fadeClass} ${imageFadeClass}" data-eidx="${i}" data-target-id="${enemyTargetId(e)}" data-token-id="${e.tokenId||""}" style="--totm-scene-scale:${layout.scale/100};left:${layout.posX}%;top:${layout.posY}%;transform:translate(-50%,-50%) scale(var(--totm-scene-scale));"><img src="${img}" alt="${e.name}"/></div>`);
+    sceneImgs.push(`<div class="totm-scene-img totm-scene-enemy ${enemyTargets.includes(enemyTargetId(e))?"enemy-targeted":""} ${fadeClass} ${imageFadeClass}" data-eidx="${i}" data-target-id="${attr(enemyTargetId(e))}" data-token-id="${attr(e.tokenId||"")}" style="--totm-scene-scale:${layout.scale/100};left:${layout.posX}%;top:${layout.posY}%;transform:translate(-50%,-50%) scale(var(--totm-scene-scale));"><img src="${attr(img)}" alt="${attr(e.name)}"/></div>`);
   });
   return sceneImgs;
 }
@@ -73,11 +77,13 @@ export function renderEnemyBar({d,scene,deps}){
   const enemies=d.enemies||[],targets=scene?getTargets(scene):[];
   if(!d.combatActive||!enemies.length)return "";
   const now=Date.now();
-  return `<div id="totm-enemy-wrap"><div id="totm-enemy-tools"><button class="totm-tb-btn" data-target-act="random"><i class="fas fa-dice"></i> Random Target</button><button class="totm-tb-btn" data-target-act="next"><i class="fas fa-crosshairs"></i> T Target</button><button class="totm-tb-btn" data-target-act="clear"><i class="fas fa-ban"></i> Clear</button></div><div id="totm-enemy-bar">${enemies.map((e,i)=>{normalizeEnemyEntry(e);const a=getEncounterActor(e,scene);const res=getRes(e,scene,{enemy:true,auto:true}).filter(r=>r.label==="HP"||r.label==="MP");const img=a?.prototypeToken?.texture?.src||a?.img||e.img||"icons/svg/mystery-man.svg";const dead=(res.find(r=>r.label==="HP")?.value??1)<=0,targeted=targets.includes(enemyTargetId(e)),targeters=getEnemyTargetUsers(e,scene);const fadeClass=e.transitionState&&now-(e.transitionAt||0)<ENEMY_FADE_MS+150?`is-${e.transitionState}`:"";return `<div class="totm-enemy-card ${dead?"enemy-dead":""} ${targeted?"enemy-targeted":""} ${fadeClass}" data-eidx="${i}" data-target-id="${enemyTargetId(e)}"><div class="totm-card-bg" style="background-image:url('${img}')"></div><div class="totm-card-overlay"></div><div class="totm-enemy-targeters">${targeters.map(t=>`<span class="totm-enemy-targeter" title="${t.name}" style="--targeter-color:${t.color};background-image:url('${t.img}')"></span>`).join("")}</div><div class="totm-enemy-actions"><button data-eact="target" class="${targeted?"active-target":""}" title="Target"><i class="fas fa-crosshairs"></i></button>${isGM()?`<button data-eact="remove" title="Remove"><i class="fas fa-times"></i></button>`:""}</div><div class="totm-card-content"><div class="totm-actor-name">${e.name}</div>${deps.renderBars(res,{kind:"enemy"})}</div></div>`;}).join("")}</div></div>`;
+  return `<div id="totm-enemy-wrap"><div id="totm-enemy-tools"><button class="totm-tb-btn" data-target-act="random"><i class="fas fa-dice"></i> Random Target</button><button class="totm-tb-btn" data-target-act="next"><i class="fas fa-crosshairs"></i> T Target</button><button class="totm-tb-btn" data-target-act="clear"><i class="fas fa-ban"></i> Clear</button></div><div id="totm-enemy-bar">${enemies.map((e,i)=>{normalizeEnemyEntry(e);const a=getEncounterActor(e,scene);const res=getRes(e,scene,{enemy:true,auto:true}).filter(r=>r.label==="HP"||r.label==="MP");const img=a?.prototypeToken?.texture?.src||a?.img||e.img||"icons/svg/mystery-man.svg";const dead=(res.find(r=>r.label==="HP")?.value??1)<=0,targeted=targets.includes(enemyTargetId(e)),targeters=getEnemyTargetUsers(e,scene);const fadeClass=e.transitionState&&now-(e.transitionAt||0)<ENEMY_FADE_MS+150?`is-${e.transitionState}`:"";return `<div class="totm-enemy-card ${dead?"enemy-dead":""} ${targeted?"enemy-targeted":""} ${fadeClass}" data-eidx="${i}" data-target-id="${attr(enemyTargetId(e))}"><div class="totm-card-bg" style="${attr(`background-image:${cssUrl(img)}`)}"></div><div class="totm-card-overlay"></div><div class="totm-enemy-targeters">${targeters.map(t=>`<span class="totm-enemy-targeter" title="${attr(t.name)}" style="${attr(`--targeter-color:${t.color};background-image:${cssUrl(t.img)}`)}"></span>`).join("")}</div><div class="totm-enemy-actions"><button data-eact="target" class="${targeted?"active-target":""}" title="Target"><i class="fas fa-crosshairs"></i></button>${isGM()?`<button data-eact="remove" title="Remove"><i class="fas fa-times"></i></button>`:""}</div><div class="totm-card-content"><div class="totm-actor-name">${esc(e.name)}</div>${deps.renderBars(res,{kind:"enemy"})}</div></div>`;}).join("")}</div></div>`;
 }
 
 export function bindEnemyStageEvents({el,scene,d,deps}){
-  const {isGM,setTargets,getTargets,targetRandomEnemy,targetNextEnemy,toggleEnemyTarget,getEncounterActor,pruneEnemyTokenDocs,saveData,emit,refreshUI,makeEnemyEntry,ensureEnemyTokenDocs,openDragPos,getQuestPinImage,addStageActor,openStageActorCfg,removeStageActor,moveStageActor,moveStageActorToEdge,toggleSceneEntityImage,hasSceneEntityAltImage}=deps;
+  const {isGM,setTargets,getTargets,targetRandomEnemy,targetNextEnemy,toggleEnemyTarget,getEncounterActor,pruneEnemyTokenDocs,saveData,emit,refreshUI,scheduleRefresh,makeEnemyEntry,ensureEnemyTokenDocs,openDragPos,getQuestPinImage,addStageActor,openStageActorCfg,removeStageActor,moveStageActor,moveStageActorToEdge,toggleSceneEntityImage,hasSceneEntityAltImage,confirmDestructive}=deps;
+  const refresh=()=>scheduleRefresh?scheduleRefresh(scene):refreshUI(scene);
+  const confirmDelete=(title,content)=>confirmDestructive?confirmDestructive({title,content,yes:"Delete"}):Promise.resolve(true);
   const wait = ms => new Promise(resolve=>setTimeout(resolve, ms));
   const animateSwapThen = async (node, action) => {
     if(node) node.classList.add("is-image-swap-pending");
@@ -97,6 +103,7 @@ export function bindEnemyStageEvents({el,scene,d,deps}){
 
   const removeNpcAtIndex = async idx => {
     if(!Number.isInteger(idx)||idx<0||!Array.isArray(d.npcs)||!d.npcs[idx])return;
+    if(!await confirmDelete("Delete NPC?",`${d.npcs[idx].name||"NPC"} will be removed from this scene.`))return;
     d.npcs.splice(idx,1);
     await saveData(scene,d);
     emit();
@@ -114,8 +121,11 @@ export function bindEnemyStageEvents({el,scene,d,deps}){
   };
   const removeEnemyAtIndex = async idx => {
     if(!Number.isInteger(idx)||idx<0||!Array.isArray(d.enemies)||!d.enemies[idx])return;
+    if(!await confirmDelete("Delete Enemy?",`${d.enemies[idx].name||"Enemy"} will be removed from this encounter.`))return;
+    const targetId=d.enemies[idx].instanceId||d.enemies[idx].id;
     d.enemies.splice(idx,1);
     if(!d.enemies.length)d.combatActive=false;
+    await setTargets(scene,getTargets(scene).filter(id=>id!==targetId),game.user,d);
     await pruneEnemyTokenDocs(scene,d);
     await saveData(scene,d);
     emit();
@@ -225,6 +235,7 @@ export function bindEnemyStageEvents({el,scene,d,deps}){
   };
   const deleteScenePropById = async propId => {
     if(!propId)return;
+    if(!await confirmDelete("Delete Prop?","This prop will be removed from the scene."))return;
     if(!d.propsByBackground || typeof d.propsByBackground!=="object" || Array.isArray(d.propsByBackground)) d.propsByBackground={};
     let removed=false;
     for(const [key,bucket] of Object.entries(d.propsByBackground)){
@@ -460,185 +471,176 @@ export function bindEnemyStageEvents({el,scene,d,deps}){
   bindEnemyDropZone(el.querySelector("#totm-enemy-wrap"));
   bindEnemyDropZone(el.querySelector("#totm-enemy-bar"));
 
+  const openEnemyPosition = (idx,node=null) => {
+    const en=d.enemies?.[idx];
+    if(!en)return;
+    openDragPos?.(en, scene, d, async () => {
+      await ensureEnemyTokenDocs(scene, d);
+      await saveData(scene, d);
+      emit();
+      refresh();
+    }, async () => {
+      await removeEnemyAtIndex(idx);
+    });
+  };
+  const openNpcPosition = (idx,node=null) => {
+    const npc=d.npcs?.[idx];
+    if(!npc)return;
+    openDragPos?.(npc, scene, d, async () => {
+      await saveData(scene, d);
+      emit();
+      refresh();
+    }, async () => {
+      await removeNpcAtIndex(idx);
+    });
+  };
+  const openPropPosition = (idx,node=null) => {
+    const propBucket=getPropBucket();
+    const prop=propBucket[idx];
+    if(!prop)return;
+    openDragPos?.(prop, scene, d, async () => {
+      syncCurrentPropView(propBucket);
+      await saveData(scene,d);
+      emit();
+      refresh();
+    }, async () => {
+      await deleteScenePropById(prop.id);
+    });
+  };
+
   el.querySelector("#totm-enemy-bar")?.addEventListener("click",async e=>{
     const card=e.target.closest(".totm-enemy-card"),ab=e.target.closest("[data-eact]");
-    if(ab&&card){
-      const i=+card.dataset.eidx,act=ab.dataset.eact,targetId=card.dataset.targetId;
-      if(act==="remove"){
-        d.enemies.splice(i,1);
-        await setTargets(scene,getTargets(scene).filter(id=>id!==targetId),game.user,d);
-        await pruneEnemyTokenDocs(scene,d);
-        await saveData(scene,d);
-        emit();
-        refreshUI(scene);
-        return;
-      }
-      if(act==="target"){
-        await toggleEnemyTarget(scene,d,targetId);
-        return;
-      }
+    if(!card)return;
+    const i=+card.dataset.eidx,targetId=card.dataset.targetId;
+    if(ab?.dataset.eact==="remove"){
+      await removeEnemyAtIndex(i);
+      return;
     }
-    if(card)await toggleEnemyTarget(scene,d,card.dataset.targetId);
+    await toggleEnemyTarget(scene,d,targetId);
   });
   el.querySelector("#totm-enemy-bar")?.addEventListener("dblclick",e=>{
     const card=e.target.closest(".totm-enemy-card");
     if(!card)return;
-    const en=d.enemies[+card.dataset.eidx];
-    if(!en)return;
-    const a=getEncounterActor(en,scene);
-    if(a)a.sheet.render(true);
+    const en=d.enemies[+card.dataset.eidx],a=en?getEncounterActor(en,scene):null;
+    a?.sheet?.render?.(true);
   });
   el.querySelector("#totm-enemy-bar")?.addEventListener("contextmenu",e=>{
     const card=e.target.closest(".totm-enemy-card");
     if(!card)return;
     e.preventDefault();
-    const idx=+card.dataset.eidx;
-    const en=d.enemies[idx];
-    if(!en)return;
-    openDragPos?.(en, scene, d, async () => {
-      await ensureEnemyTokenDocs(scene, d);
-      await saveData(scene, d);
-      emit();
-      refreshUI(scene);
-    }, async () => {
-      await removeEnemyAtIndex(idx);
-    });
+    openEnemyPosition(+card.dataset.eidx,card);
   });
-  el.querySelectorAll(".totm-scene-enemy").forEach(img=>img.addEventListener("click",async e=>{
-    if(!d.combatActive)return;
-    const enemyId=e.currentTarget?.dataset?.targetId;
-    if(enemyId)await toggleEnemyTarget(scene,d,enemyId);
-  }));
-  el.querySelectorAll(".totm-scene-enemy").forEach(img=>img.addEventListener("dblclick",e=>{
-    const en=d.enemies[+e.currentTarget?.dataset?.eidx];
-    if(!en)return;
-    const a=getEncounterActor(en,scene);
-    if(a)a.sheet.render(true);
-  }));
-  el.querySelectorAll(".totm-scene-enemy").forEach(img=>img.addEventListener("contextmenu",e=>{
-    e.preventDefault();
-    const idx=+e.currentTarget?.dataset?.eidx;
-    const en=d.enemies[idx];
-    if(!en)return;
-    if(!e.shiftKey&&hasSceneEntityAltImage(en)){
-      void toggleEnemyImageAtIndex(idx,e.currentTarget);
+
+  const stage=el.querySelector("#totm-stage");
+  stage?.addEventListener("click",async e=>{
+    const enemy=e.target.closest(".totm-scene-enemy");
+    if(enemy){
+      if(!d.combatActive)return;
+      const enemyId=enemy.dataset.targetId;
+      if(enemyId)await toggleEnemyTarget(scene,d,enemyId);
       return;
     }
-    openDragPos?.(en, scene, d, async () => {
-      await ensureEnemyTokenDocs(scene, d);
-      await saveData(scene, d);
-      emit();
-      refreshUI(scene);
-    }, async () => {
-      await removeEnemyAtIndex(idx);
-    });
-  }));
-  el.querySelectorAll(".totm-scene-npc").forEach(img=>img.addEventListener("dblclick",e=>{
-    const idx=+e.currentTarget?.dataset?.nidx;
-    const npc=d.npcs?.[idx];
-    const actor=game.actors?.contents?.find?.(a=>a.img===npc?.image||a.prototypeToken?.texture?.src===npc?.image);
-    actor?.sheet?.render?.(true);
-  }));
-  el.querySelectorAll(".totm-scene-npc").forEach(img=>img.addEventListener("click",async e=>{
-    if(!e.shiftKey)return;
-    e.preventDefault();
-    e.stopPropagation();
-    await removeNpcAtIndex(+e.currentTarget?.dataset?.nidx);
-  }));
-  el.querySelectorAll(".totm-scene-npc").forEach(img=>img.addEventListener("contextmenu",e=>{
-    e.preventDefault();
-    const idx=+e.currentTarget?.dataset?.nidx;
-    const npc=d.npcs?.[idx];
-    if(!npc)return;
-    if(!e.shiftKey&&hasSceneEntityAltImage(npc)){
-      void toggleNpcImageAtIndex(idx,e.currentTarget);
+    const npc=e.target.closest(".totm-scene-npc");
+    if(npc&&e.shiftKey){
+      e.preventDefault();
+      e.stopPropagation();
+      await removeNpcAtIndex(+npc.dataset.nidx);
       return;
     }
-    openDragPos?.(npc, scene, d, async () => {
-      await saveData(scene, d);
-      emit();
-      refreshUI(scene);
-    }, async () => {
-      await removeNpcAtIndex(idx);
-    });
-  }));
-  el.querySelectorAll(".totm-scene-prop").forEach(img=>img.addEventListener("click",async e=>{
-    if(!e.shiftKey)return;
-    e.preventDefault();
-    e.stopPropagation();
-    const idx=+e.currentTarget?.dataset?.pidx;
-    if(!Number.isInteger(idx)||idx<0)return;
-    const propBucket=getPropBucket();
-    const prop=propBucket[idx];
-    if(!prop)return;
-    await deleteScenePropById(prop.id);
-  }));
-  el.querySelectorAll(".totm-scene-prop").forEach(img=>img.addEventListener("contextmenu",async e=>{
-    e.preventDefault();
-    const idx=+e.currentTarget?.dataset?.pidx;
-    if(!Number.isInteger(idx)||idx<0)return;
-    const propBucket=getPropBucket();
-    const prop=propBucket[idx];
-    if(!prop)return;
-    if(!e.shiftKey&&hasSceneEntityAltImage(prop)){
-      await toggleScenePropImageById(prop.id,e.currentTarget);
+    const prop=e.target.closest(".totm-scene-prop");
+    if(prop&&e.shiftKey){
+      e.preventDefault();
+      e.stopPropagation();
+      const propBucket=getPropBucket(),idx=+prop.dataset.pidx,liveProp=propBucket[idx];
+      if(liveProp)await deleteScenePropById(liveProp.id);
       return;
     }
-    if(e.altKey){
-      await deleteScenePropById(prop.id);
+    const actor=e.target.closest(".totm-stage-actor");
+    if(actor&&(e.shiftKey||e.altKey)){
+      e.preventDefault();
+      e.stopPropagation();
+      const idx=+actor.dataset.baidx;
+      if(!Number.isInteger(idx)||idx<0)return;
+      if(e.shiftKey)await moveStageActor(scene,d,idx,1);
+      else await moveStageActor(scene,d,idx,-1);
+    }
+  });
+  stage?.addEventListener("dblclick",e=>{
+    const enemy=e.target.closest(".totm-scene-enemy");
+    if(enemy){
+      const en=d.enemies[+enemy.dataset.eidx],a=en?getEncounterActor(en,scene):null;
+      a?.sheet?.render?.(true);
       return;
     }
-    openDragPos?.(prop, scene, d, async () => {
-      syncCurrentPropView(propBucket);
-      await saveData(scene,d);
-      emit();
-      refreshUI(scene);
-    }, async () => {
-      await deleteScenePropById(prop.id);
-    });
-  }));
-  el.querySelectorAll(".totm-stage-actor").forEach(img=>img.addEventListener("dblclick",e=>{
-    const idx=+e.currentTarget?.dataset?.baidx;
-    const entry=d.boardActors?.[idx];
-    const actor=entry?game.actors.get(entry.actorId):null;
-    actor?.sheet?.render?.(true);
-  }));
-  el.querySelectorAll(".totm-stage-actor").forEach(img=>img.addEventListener("contextmenu",async e=>{
-    e.preventDefault();
-    const idx=+e.currentTarget?.dataset?.baidx;
-    if(!Number.isInteger(idx)||idx<0)return;
-    const entry=d.boardActors?.[idx];
-    if(!entry)return;
-    if(e.shiftKey){
-      await moveStageActorToEdge(scene,d,idx,"front");
+    const npcNode=e.target.closest(".totm-scene-npc");
+    if(npcNode){
+      const npc=d.npcs?.[+npcNode.dataset.nidx];
+      const actor=game.actors?.contents?.find?.(a=>a.img===npc?.image||a.prototypeToken?.texture?.src===npc?.image);
+      actor?.sheet?.render?.(true);
       return;
     }
-    if(e.altKey){
-      await moveStageActorToEdge(scene,d,idx,"back");
+    const actorNode=e.target.closest(".totm-stage-actor");
+    if(actorNode){
+      const entry=d.boardActors?.[+actorNode.dataset.baidx],actor=entry?game.actors.get(entry.actorId):null;
+      actor?.sheet?.render?.(true);
+    }
+  });
+  stage?.addEventListener("contextmenu",async e=>{
+    const enemy=e.target.closest(".totm-scene-enemy");
+    if(enemy){
+      e.preventDefault();
+      const idx=+enemy.dataset.eidx,en=d.enemies[idx];
+      if(!en)return;
+      if(!e.shiftKey&&hasSceneEntityAltImage(en)){
+        void toggleEnemyImageAtIndex(idx,enemy);
+        return;
+      }
+      openEnemyPosition(idx,enemy);
       return;
     }
-    openStageActorCfg?.(scene,d,idx);
-  }));
-  el.querySelectorAll(".totm-stage-actor").forEach(img=>img.addEventListener("click",async e=>{
-    if(!e.shiftKey&&!e.altKey)return;
-    e.preventDefault();
-    e.stopPropagation();
-    const idx=+e.currentTarget?.dataset?.baidx;
-    if(!Number.isInteger(idx)||idx<0)return;
-    if(e.shiftKey){
-      await moveStageActor(scene,d,idx,1);
+    const npc=e.target.closest(".totm-scene-npc");
+    if(npc){
+      e.preventDefault();
+      const idx=+npc.dataset.nidx,liveNpc=d.npcs?.[idx];
+      if(!liveNpc)return;
+      if(!e.shiftKey&&hasSceneEntityAltImage(liveNpc)){
+        void toggleNpcImageAtIndex(idx,npc);
+        return;
+      }
+      openNpcPosition(idx,npc);
       return;
     }
-    if(e.altKey){
-      await moveStageActor(scene,d,idx,-1);
+    const prop=e.target.closest(".totm-scene-prop");
+    if(prop){
+      e.preventDefault();
+      const idx=+prop.dataset.pidx,propBucket=getPropBucket(),liveProp=propBucket[idx];
+      if(!liveProp)return;
+      if(!e.shiftKey&&hasSceneEntityAltImage(liveProp)){
+        await toggleScenePropImageById(liveProp.id,prop);
+        return;
+      }
+      if(e.altKey){
+        await deleteScenePropById(liveProp.id);
+        return;
+      }
+      openPropPosition(idx,prop);
+      return;
     }
-  }));
-  el.querySelectorAll(".totm-scene-quest").forEach(img=>img.addEventListener("contextmenu",e=>{
-    e.preventDefault();
-    const idx=+e.currentTarget?.dataset?.qidx;
-    if(!Number.isInteger(idx)||idx<0)return;
-    const pin=getQuestBucket()[idx];
-    if(!pin)return;
-    openQuestPinMenu(pin);
-  }));
+    const actor=e.target.closest(".totm-stage-actor");
+    if(actor){
+      e.preventDefault();
+      const idx=+actor.dataset.baidx;
+      if(!Number.isInteger(idx)||idx<0)return;
+      if(e.shiftKey){await moveStageActorToEdge(scene,d,idx,"front");return;}
+      if(e.altKey){await moveStageActorToEdge(scene,d,idx,"back");return;}
+      openStageActorCfg?.(scene,d,idx);
+      return;
+    }
+    const quest=e.target.closest(".totm-scene-quest");
+    if(quest){
+      e.preventDefault();
+      const idx=+quest.dataset.qidx,pin=Number.isInteger(idx)&&idx>=0?getQuestBucket()[idx]:null;
+      if(pin)openQuestPinMenu(pin);
+    }
+  });
 }
