@@ -556,6 +556,7 @@ async function commitBoardActorPlacement(scene,entryId,actorId,proxy,{combat=fal
   const actor=game.actors.get(actorId||entry?.actorId);
   if(!entry||!actor){
     ui.notifications.error("Could not commit board character placement.");
+    console.error("TOTM commitBoardActorPlacement failed", {entryId,actorId,proxy,d});
     return;
   }
   normalizeBoardActorEntry(entry,actor);
@@ -1153,6 +1154,7 @@ function renderGmOnboarding(){
 }
 
 function renderBoardActors(scene,d){
+  if(!Array.isArray(d.boardActors)||!d.boardActors.length)return "";
   if(d.boardActorsVisible===false)return "";
   repairBoardActors(d);
   return (d.boardActors||[]).map((entry,i)=>{
@@ -1161,21 +1163,30 @@ function renderBoardActors(scene,d){
     else normalizeBoardActorSavedEntry(entry);
     const img=getStageActorImage(entry,d,{inCombat:!!d.combatActive})||getStageActorDefaultImage(actor);
     const layout=getStageActorLayout(entry,{inCombat:!!d.combatActive});
-    return `<div class="totm-scene-img totm-stage-actor" data-baidx="${i}" data-board-actor-id="${attr(entry.id||"")}" data-actor-id="${attr(entry.actorId||"")}" style="${attr(`left:${layout.posX}%;top:${layout.posY}%;transform:translate(-50%,-50%) scale(${layout.scale/100});`)}"><img src="${attr(img)}" alt="${attr(entry.name||actor?.name||"Character")}"/></div>`;
+    const posX=clampStageValue(layout.posX,0,100,50);
+    const posY=clampStageValue(layout.posY,0,100,58);
+    const scale=clampStageValue(layout.scale,MIN_STAGE_ENTITY_SCALE,MAX_STAGE_ENTITY_SCALE,100)/100;
+    const name=entry.name||actor?.name||"Character";
+    return `<div class="totm-scene-img totm-stage-actor totm-board-actor" data-baidx="${i}" data-board-actor-id="${attr(entry.id||"")}" data-actor-id="${attr(entry.actorId||"")}" title="${attr(name)}" style="${attr(`left:${posX}%;top:${posY}%;transform:translate(-50%, -50%) scale(${scale});`)}"><img src="${attr(img)}" alt="${attr(name)}"/></div>`;
   }).join("");
 }
 
 function warnIfBoardActorsFailedToRender(scene){
   if(!game.user?.isGM||!scene||!isTOTM(scene))return;
   const d=getData(scene);
-  const count=d.boardActors?.length||0;
-  const domCount=document.querySelectorAll("#totm-board-actor-layer .totm-stage-actor").length;
+  const savedCount=Array.isArray(d.boardActors)?d.boardActors.length:0;
+  const renderedCount=document.querySelectorAll("#totm-board-actor-layer .totm-stage-actor").length;
   const key=scene.id||scene.name||"current";
-  if(count>0&&d.boardActorsVisible!==false&&domCount===0){
+  if(savedCount>0&&d.boardActorsVisible!==false&&renderedCount===0){
     if(BOARD_RENDER_WARNED_SCENES.has(key))return;
     BOARD_RENDER_WARNED_SCENES.add(key);
-    console.warn("TOTM board actor render failure", {scene:scene.name,boardActorsVisible:d.boardActorsVisible,boardActors:d.boardActors,domCount});
-    ui.notifications.warn("TOTM has board characters saved, but none rendered. Open Board Characters manager or run window.TOTMOverlay.debugBoardActors().");
+    console.error("TOTM board actors saved but not rendered", {
+      savedCount,
+      renderedCount,
+      boardActors:d.boardActors,
+      stageWrap:!!document.querySelector("#totm-stage-wrap"),
+      boardLayer:!!document.querySelector("#totm-board-actor-layer")
+    });
     return;
   }
   BOARD_RENDER_WARNED_SCENES.delete(key);
