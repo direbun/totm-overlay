@@ -2,7 +2,7 @@
   "id": "totm-overlay",
   "title": "TOTM Overlay - Theater of the Mind Companion",
   "description": "A Foundry VTT theater-of-the-mind overlay for Fabula Ultima style play, with cinematic backgrounds, stage enemies and NPCs, player cards, encounter tools, shared pins, clocks, and library pickers.",
-  "version": "2.0.9",
+  "version": "2.1.0",
   "compatibility": {
     "minimum": "13",
     "verified": "13"

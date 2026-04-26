@@ -383,6 +383,64 @@ function getStageActorImage(entry,d,{inCombat=false}={}){
   }
   return entry?.image||linked?.artImg||linked?.img||getStageActorDefaultImage(actor);
 }
+const clampStageValue=(value,min,max,fallback)=>Number.isFinite(+value)?Math.max(min,Math.min(max,+value)):fallback;
+function cacheSceneData(scene,d){
+  if(scene?.id)SCENE_DATA_CACHE.set(scene.id,cloneData(normalizeSceneData(d)));
+}
+function repairBoardActorsData(d,{forceVisible=false}={}){
+  if(!d)return false;
+  let changed=false;
+  if(!Array.isArray(d.boardActors)){
+    d.boardActors=[];
+    changed=true;
+  }
+  const seen=new Set(),next=[];
+  for(const raw of d.boardActors){
+    const actor=game.actors.get(raw?.actorId);
+    if(!actor){
+      changed=true;
+      continue;
+    }
+    if(seen.has(actor.id)){
+      changed=true;
+      continue;
+    }
+    seen.add(actor.id);
+    const entry=raw&&typeof raw==="object"?raw:{};
+    const set=(key,value)=>{if(entry[key]!==value){entry[key]=value;changed=true;}};
+    if(!entry.id)set("id",foundry.utils.randomID());
+    set("kind","board-actor");
+    set("actorId",actor.id);
+    if(!String(entry.name||"").trim())set("name",actor.name||"Character");
+    if(!String(entry.image||"").trim())set("image",getStageActorDefaultImage(actor));
+    const posX=clampStageValue(entry.posX,0,100,50);
+    const posY=clampStageValue(entry.posY,0,100,58);
+    const scale=clampStageValue(entry.scale,MIN_STAGE_ENTITY_SCALE,MAX_STAGE_ENTITY_SCALE,100);
+    if(entry.posX!==posX)set("posX",posX);
+    if(entry.posY!==posY)set("posY",posY);
+    if(entry.scale!==scale)set("scale",scale);
+    if(entry.combatPosX!==null&&entry.combatPosX!==undefined){
+      const value=Number.isFinite(+entry.combatPosX)?clampStageValue(entry.combatPosX,0,100,50):null;
+      if(entry.combatPosX!==value)set("combatPosX",value);
+    }else if(entry.combatPosX===undefined)set("combatPosX",null);
+    if(entry.combatPosY!==null&&entry.combatPosY!==undefined){
+      const value=Number.isFinite(+entry.combatPosY)?clampStageValue(entry.combatPosY,0,100,58):null;
+      if(entry.combatPosY!==value)set("combatPosY",value);
+    }else if(entry.combatPosY===undefined)set("combatPosY",null);
+    if(entry.combatScale!==null&&entry.combatScale!==undefined){
+      const value=Number.isFinite(+entry.combatScale)?clampStageValue(entry.combatScale,MIN_STAGE_ENTITY_SCALE,MAX_STAGE_ENTITY_SCALE,100):null;
+      if(entry.combatScale!==value)set("combatScale",value);
+    }else if(entry.combatScale===undefined)set("combatScale",null);
+    next.push(entry);
+  }
+  if(next.length!==d.boardActors.length)changed=true;
+  d.boardActors=next;
+  if(forceVisible&&d.boardActorsVisible===false){
+    d.boardActorsVisible=true;
+    changed=true;
+  }
+  return changed;
+}
 function hasSceneEntityAltImage(entity){
   return !!String(entity?.altImage||"").trim();
 }
@@ -609,7 +667,7 @@ async function clearEncounterState(scene,d){
   refreshUI(scene);
 }
 async function clearCurrentBackgroundProps(scene,d){
-  const ok=await confirmDestructive({title:"Clear Current Background Props?",content:"This removes all props placed on the current background.",yes:"Clear"});
+  const ok=await confirmDestructive({title:"Wipe Props?",content:"Remove props from the current background. Does not remove player/board character icons.",yes:"Wipe Props"});
   if(!ok)return;
   const key=String(d.background||"");
   if(!key){
@@ -624,6 +682,28 @@ async function clearCurrentBackgroundProps(scene,d){
   emit();
   refreshUI(scene);
   ui.notifications.warn("Cleared all props on the current background.");
+}
+async function clearBoardActors(scene=game.scenes.viewed,{notify=true}={}){
+  if(!game.user.isGM||!scene||!isTOTM(scene))return;
+  const d=getData(scene);
+  d.boardActors=[];
+  d.boardActorsVisible=true;
+  cacheSceneData(scene,d);
+  await saveData(scene,d);
+  emit();
+  refreshUI(scene);
+  if(notify)ui.notifications.warn("Cleared TOTM board character placements.");
+}
+async function repairBoardActors(scene=game.scenes.viewed,{notify=true}={}){
+  if(!game.user.isGM||!scene||!isTOTM(scene))return;
+  const d=getData(scene);
+  repairBoardActorsData(d,{forceVisible:true});
+  d.boardActorsVisible=true;
+  cacheSceneData(scene,d);
+  await saveData(scene,d);
+  emit();
+  refreshUI(scene);
+  if(notify)ui.notifications.info("Repaired/revealed TOTM board character placements.");
 }
 function reorderStageActorEntries(d,fromIndex,toIndex){
   if(!Array.isArray(d.boardActors))d.boardActors=[];
@@ -665,22 +745,26 @@ async function removeStageActor(scene,d,entryId){
 }
 async function addStageActor(scene,d,actor,opts={}){
   if(!actor||actor.type!=="character")return null;
-  if(!Array.isArray(d.boardActors))d.boardActors=[];
+  repairBoardActorsData(d,{forceVisible:true});
   const existing=d.boardActors.find(entry=>entry?.actorId===actor.id);
   if(existing){
-    if(Number.isFinite(opts.posX))existing.posX=opts.posX;
-    if(Number.isFinite(opts.posY))existing.posY=opts.posY;
-    if(existing.combatPosX===undefined)existing.combatPosX=null;
-    if(existing.combatPosY===undefined)existing.combatPosY=null;
-    if(existing.combatScale===undefined)existing.combatScale=null;
+    d.boardActorsVisible=true;
+    if(Number.isFinite(opts.posX))existing.posX=clampStageValue(opts.posX,0,100,existing.posX??50);
+    if(Number.isFinite(opts.posY))existing.posY=clampStageValue(opts.posY,0,100,existing.posY??58);
+    if(Number.isFinite(opts.scale))existing.scale=clampStageValue(opts.scale,MIN_STAGE_ENTITY_SCALE,MAX_STAGE_ENTITY_SCALE,existing.scale??100);
+    repairBoardActorsData(d,{forceVisible:true});
+    cacheSceneData(scene,d);
     await saveData(scene,d);
     emit();
     refreshUI(scene);
-    ui.notifications.info(`${actor.name} is already on the board.`);
+    setTimeout(()=>openStageActorLayoutPos(scene,d,existing,{combat:false}),30);
+    ui.notifications.info(`${actor.name} is already on the board. Opening placement controls.`);
     return existing;
   }
   const entry=makeStageActorEntry(actor,{posX:Number.isFinite(opts.posX)?opts.posX:50,posY:Number.isFinite(opts.posY)?opts.posY:58,scale:Number.isFinite(opts.scale)?opts.scale:100});
   d.boardActors.push(entry);
+  d.boardActorsVisible=true;
+  cacheSceneData(scene,d);
   await saveData(scene,d);
   emit();
   refreshUI(scene);
@@ -1002,6 +1086,8 @@ function refreshUI(scene){
   const el=document.getElementById("totm-ui");if(!el)return;
   const hadLayout=!!el.querySelector(".totm-layout");
   const d=getData(scene);
+  const repairedBoardActors=repairBoardActorsData(d);
+  if(repairedBoardActors&&isGM())void saveData(scene,d);
   const ctx=makeRenderContext(scene,d);
   const theme=getThemeMeta(game.settings.get(MODULE_ID,"uiTheme")||d.style||"classic");
   el.dataset.style=theme.id;
@@ -1081,7 +1167,7 @@ function bindEvents(scene,d){
   bindTotmHotbarDropZone(hotbarSlot);
     bindTotmHotbarUi(el,{refresh:()=>{const s=game.scenes.viewed;if(s&&isTOTM(s))scheduleRefresh(s);}});
     if(isGM()){
-      bindSceneAdminEventsModule({el,scene,d,deps:{openMasterLibraryPicker,openBgPicker,openNpcPicker,openEncPicker,CLOCKS_OPEN_ref:()=>CLOCKS_OPEN,setCLOCKS_OPEN:v=>{CLOCKS_OPEN=v;},refreshUI,scheduleRefresh,openBgCfg,clearCurrentBackgroundProps,addQuestPin,toggleGmPin,openGmPinCfg,clearEncounterState,openSimpleTimekeeping,saveData,emit,toggleBoardActorsVisibility,setCombatActive,openGmHelpDialog}});
+      bindSceneAdminEventsModule({el,scene,d,deps:{openMasterLibraryPicker,openBgPicker,openNpcPicker,openEncPicker,CLOCKS_OPEN_ref:()=>CLOCKS_OPEN,setCLOCKS_OPEN:v=>{CLOCKS_OPEN=v;},refreshUI,scheduleRefresh,openBgCfg,clearCurrentBackgroundProps,addQuestPin,toggleGmPin,openGmPinCfg,clearEncounterState,openSimpleTimekeeping,saveData,emit,toggleBoardActorsVisibility,openBoardActorMgr,setCombatActive,openGmHelpDialog}});
     }
     mountSimpleTimekeepingIntoTotm();
     bindClockDockEvents(el,scene);
@@ -2185,11 +2271,101 @@ function openBgEditDialog(scene,d,bg,onSaved){
   }).render(true);
 }
 
+function openBoardActorMgr(scene,d=getData(scene)){
+  if(!isGM()||!scene||!isTOTM(scene))return;
+  repairBoardActorsData(d);
+  const content=`<div class="totm-board-mgr">
+    <div class="totm-board-mgr-toolbar">
+      <button type="button" data-board-act="reveal"><i class="fas fa-eye"></i> Reveal All</button>
+      <button type="button" data-board-act="repair"><i class="fas fa-wrench"></i> Repair</button>
+      <button type="button" class="is-danger" data-board-act="clear"><i class="fas fa-trash"></i> Clear All Board Characters</button>
+    </div>
+    <div class="totm-board-mgr-list" data-board-list></div>
+  </div>`;
+  new Dialog({
+    title:"Board Characters",
+    content,
+    buttons:{close:{icon:'<i class="fas fa-times"></i>',label:"Close"}},
+    default:"close",
+    render:html=>{
+      const root=html[0],list=root.querySelector("[data-board-list]");
+      const saveBoard=async({notify="",refresh=true}={})=>{
+        repairBoardActorsData(d,{forceVisible:true});
+        cacheSceneData(scene,d);
+        await saveData(scene,d);
+        emit();
+        if(refresh)refreshUI(scene);
+        if(notify)ui.notifications.info(notify);
+      };
+      const render=()=>{
+        repairBoardActorsData(d);
+        const rows=d.boardActors||[];
+        list.innerHTML=rows.length?rows.map((entry,idx)=>{
+          const actor=game.actors.get(entry.actorId);
+          const layout=getStageActorLayout(entry,{inCombat:false});
+          const img=getStageActorImage(entry,d,{inCombat:false});
+          return `<div class="totm-board-mgr-row" data-board-idx="${idx}" data-board-id="${attr(entry.id)}">
+            <img src="${attr(img)}" alt="${attr(entry.name||actor?.name||"Character")}"/>
+            <div class="totm-board-mgr-main">
+              <div class="totm-board-mgr-name">${esc(entry.name||actor?.name||"Character")}</div>
+              <div class="totm-board-mgr-meta">X ${Math.round(layout.posX)} / Y ${Math.round(layout.posY)} / ${Math.round(layout.scale)}%</div>
+            </div>
+            <div class="totm-board-mgr-actions">
+              <button type="button" data-board-act="move"><i class="fas fa-arrows-up-down-left-right"></i> Move</button>
+              <button type="button" data-board-act="repair-one"><i class="fas fa-wrench"></i> Repair</button>
+              <button type="button" class="is-danger" data-board-act="remove"><i class="fas fa-trash"></i> Remove</button>
+            </div>
+          </div>`;
+        }).join(""):`<div class="totm-board-mgr-empty">No board characters placed.</div>`;
+      };
+      root.addEventListener("click",async event=>{
+        const act=event.target.closest("[data-board-act]")?.dataset.boardAct;
+        if(!act)return;
+        event.preventDefault();
+        event.stopPropagation();
+        const row=event.target.closest("[data-board-idx]");
+        const idx=row?Number(row.dataset.boardIdx):-1;
+        const entry=idx>=0?d.boardActors?.[idx]:null;
+        if(act==="reveal"){
+          d.boardActorsVisible=true;
+          await saveBoard({notify:"Revealed TOTM board character placements."});
+          render();
+        }else if(act==="repair"){
+          await repairBoardActors(scene,{notify:true});
+          d=getData(scene);
+          render();
+        }else if(act==="clear"){
+          const ok=await confirmDestructive({title:"Clear All Board Characters?",content:"This clears all TOTM board character placements. Player cards and props are not removed.",yes:"Clear"});
+          if(!ok)return;
+          await clearBoardActors(scene,{notify:true});
+          d=getData(scene);
+          render();
+        }else if(act==="move"&&entry){
+          d.boardActorsVisible=true;
+          await saveBoard({refresh:true});
+          openStageActorLayoutPos(scene,d,entry,{combat:false});
+          render();
+        }else if(act==="repair-one"&&entry){
+          repairBoardActorsData(d,{forceVisible:true});
+          await saveBoard({notify:"Repaired TOTM board character placement."});
+          render();
+        }else if(act==="remove"&&entry){
+          await removeStageActor(scene,d,entry.id);
+          d=getData(scene);
+          render();
+        }
+      });
+      render();
+    }
+  }).render(true);
+}
+
 function openNpcMgr(scene,d){if(!d.npcs)d.npcs=[];new Dialog({title:"NPC Setup",content:`<div style="max-height:400px;overflow-y:auto;"><div id="ml"></div></div><hr style="border-color:#444;margin:8px 0;"><button type="button" id="ma" style="width:100%;padding:6px;cursor:pointer;"><i class="fas fa-plus"></i> Add NPC</button>`,buttons:{done:{icon:'<i class="fas fa-check"></i>',label:"Done",callback:async()=>{await saveData(scene,d);emit();scheduleRefresh(scene);}}},default:"done",render:h=>{function openNpcDetails(existing,p,onSave){const name=existing?.name||p.split("/").pop().replace(/\.\w+$/,"");new Dialog({title:"NPC Details",content:`<form><div class="form-group"><label>Name</label><input name="n" value="${attr(name)}"/></div><div class="form-group"><label>Category</label><input name="c" value="${attr(existing?.category||"")}" placeholder="Shopkeeper"/></div><div class="form-group"><label>Tags</label><input name="tags" value="${attr(normalizeTagString(existing?.tags))}" placeholder="town, healer, ally"/></div><div class="form-group"><label><input type="checkbox" name="visible" ${existing?.visible?"checked":""}/> Visible on stage</label></div></form>`,buttons:{ok:{icon:'<i class="fas fa-check"></i>',label:"Save",callback:h2=>onSave({...existing,name:h2.find("[name=n]").val().trim()||name,image:p,category:h2.find("[name=c]").val().trim(),tags:normalizeTagString(h2.find("[name=tags]").val()),visible:h2.find("[name=visible]").is(":checked")})}},default:"ok"}).render(true);}
     const removeNpcByRef=npc=>{const idx=d.npcs.indexOf(npc);if(idx>=0)d.npcs.splice(idx,1);};
     function r(){h.find("#ml").html(d.npcs.map((n,i)=>`<div style="display:flex;align-items:center;gap:6px;padding:4px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.06);border-radius:4px;margin-bottom:3px;"><div style="${attr(`width:40px;height:40px;border-radius:4px;background:${cssUrl(n.image)} center/cover;flex-shrink:0;`)}"></div><div style="flex:1;"><div style="font-size:11px;font-weight:600;">${esc(n.name)}</div><div style="font-size:9px;color:#888;">${esc(n.category||"Untagged")}${n.tags?` - ${esc(normalizeTagString(n.tags))}`:""}</div></div><button type="button" data-meta="${i}" style="background:none;border:none;color:#aaa;cursor:pointer;"><i class="fas fa-pen"></i></button><button type="button" data-pos="${i}" style="background:none;border:none;color:#aaa;cursor:pointer;"><i class="fas fa-arrows-alt"></i></button><button type="button" data-d="${i}" style="background:none;border:none;color:#a05050;cursor:pointer;"><i class="fas fa-trash"></i></button></div>`).join("")||'<div style="padding:12px;text-align:center;color:#888;">No NPCs</div>');h.find("[data-d]").on("click",async function(){const i=+this.dataset.d;const ok=await confirmDestructive({title:"Delete NPC?",content:`${d.npcs[i]?.name||"NPC"} will be removed.`,yes:"Delete"});if(!ok)return;d.npcs.splice(i,1);await saveData(scene,d);emit();scheduleRefresh(scene);r();});h.find("[data-pos]").on("click",function(){const npc=d.npcs[+this.dataset.pos];if(!npc)return;openDragPos(npc,scene,d,async()=>{await saveData(scene,d);emit();scheduleRefresh(scene);r();},async()=>{const ok=await confirmDestructive({title:"Delete NPC?",content:`${npc.name||"NPC"} will be removed.`,yes:"Delete"});if(!ok)return;removeNpcByRef(npc);await saveData(scene,d);emit();scheduleRefresh(scene);r();});});h.find("[data-meta]").on("click",function(){const i=+this.dataset.meta;const npc=d.npcs[i];openNpcDetails(npc,npc.image,async upd=>{d.npcs[i]={...npc,...upd};await saveData(scene,d);emit();scheduleRefresh(scene);r();});});}
     r();h.find("#ma").on("click",()=>{new FilePicker({type:"image",callback:p=>{const baseName=p.split("/").pop().replace(/\.\w+$/,"");const npc={name:baseName,image:p,posX:50,posY:50,scale:100,visible:false,category:"",tags:""};openNpcDetails(npc,p,upd=>{d.npcs.push(upd);r();setTimeout(()=>openDragPos(upd,scene,d,async()=>{upd.visible=true;await saveData(scene,d);emit();refreshUI(scene);r();},async()=>{removeNpcByRef(upd);await saveData(scene,d);emit();refreshUI(scene);r();}),300);});}}).browse();});}}).render(true);}
 function openStageActorCfg(scene,d,idx){
+  repairBoardActorsData(d,{forceVisible:true});
   const entry=d.boardActors?.[idx];
   if(!entry)return;
   const actor=game.actors.get(entry.actorId);
@@ -2564,7 +2740,7 @@ Hooks.on("pauseGame",()=>{const s=game.scenes.viewed;if(s&&document.body.classLi
 Hooks.on("updateSetting",setting=>{if(setting.key==="simple-timekeeping.configuration"){const s=game.scenes.viewed;if(s&&document.body.classList.contains("totm-active")&&isTOTM(s))requestSceneRefresh(s);}});
 Hooks.once("init",()=>{console.log(`${MODULE_ID} | v8`);regSettings();});
 Hooks.once("ready",async()=>{game.socket.on(`module.${MODULE_ID}`,onSock);injectUI();bindTotmGlobalClickHandler();window.addEventListener("resize",()=>{if(document.body.classList.contains("totm-active")){ensureSidebarExpanded();fitSB();syncHotbarPosition();}});document.addEventListener("click",e=>{if(!document.body.classList.contains("totm-active"))return;const btn=e.target.closest?.("#sidebar .collapse, #sidebar #sidebar-collapse, #sidebar [data-action='collapse']");if(!btn)return;e.preventDefault();e.stopPropagation();ensureSidebarExpanded();},true);const s=game.scenes.viewed;if(s&&isTOTM(s)){const d=getData(s);const changedEnemies=await ensureEnemyTokenDocs(s,d),changedPlayers=await ensurePlayerTokenDocs(s,d);if(changedEnemies||changedPlayers)await saveData(s,d);activate(s);}});
-Hooks.once("ready",()=>{window.TOTMOverlay={isTOTM:s=>isTOTM(s||game.scenes.viewed),toggle:async()=>{const s=game.scenes.viewed;if(s)await toggleTOTM(s);}};});
+Hooks.once("ready",()=>{window.TOTMOverlay={...(window.TOTMOverlay||{}),isTOTM:s=>isTOTM(s||game.scenes.viewed),toggle:async()=>{const s=game.scenes.viewed;if(s)await toggleTOTM(s);},clearBoardActors:async(scene=game.scenes.viewed)=>{if(!game.user.isGM||!scene||!isTOTM(scene))return;await clearBoardActors(scene,{notify:true});},repairBoardActors:async(scene=game.scenes.viewed)=>{if(!game.user.isGM||!scene||!isTOTM(scene))return;await repairBoardActors(scene,{notify:true});}};});
 Hooks.once("ready",()=>{window.addEventListener("keydown",async e=>{if(e.repeat||e.key.toLowerCase()!=="t"||typingInField(e)||!document.body.classList.contains("totm-active"))return;const scene=game.scenes.viewed;if(!scene||!isTOTM(scene))return;const d=getData(scene),hoveredPlayer=document.querySelector("#totm-ui .totm-actor-card:hover"),hoveredStageActor=document.querySelector("#totm-ui .totm-stage-actor:hover"),hoveredEnemy=document.querySelector("#totm-ui .totm-scene-enemy:hover, #totm-ui .totm-enemy-card:hover");e.preventDefault();const hoveredActorId=hoveredPlayer?.dataset.actorId||hoveredStageActor?.dataset.actorId;if(hoveredActorId){if(!await togglePlayerTarget(hoveredActorId,scene))ui.notifications.warn("No scene token found for that player.");updateTargetHighlights(scene,d);return;}if(d.combatActive&&hoveredEnemy?.dataset.targetId){await toggleEnemyTarget(scene,d,hoveredEnemy.dataset.targetId);return;}if(document.querySelector("#totm-ui #totm-actor-list:hover")){await targetNextPlayer(scene,d);return;}if(d.combatActive)await targetNextEnemy(scene,d);});});
 Hooks.once("ready",()=>{window.addEventListener("keydown",async e=>{if(e.repeat||e.key.toLowerCase()!=="v"||typingInField(e)||!document.body.classList.contains("totm-active"))return;const scene=game.scenes.viewed;if(!scene||!isTOTM(scene)||!isGM())return;e.preventDefault();await toggleBoardActorsVisibility(scene,getData(scene));});});
 
