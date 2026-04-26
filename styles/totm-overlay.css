@@ -218,8 +218,11 @@ body.totm-active #hotbar{opacity:0!important;pointer-events:none!important}
 
 /* Main */
 #totm-main{flex:1;display:flex;flex-direction:column;position:relative;overflow:hidden}
-#totm-stage-wrap{flex:1;position:relative;overflow:hidden;min-height:0}
+#totm-stage-wrap{flex:1;position:relative;overflow:hidden;min-height:0;z-index:1}
 #totm-stage{position:absolute;inset:0;z-index:3;pointer-events:none;overflow:hidden}
+#totm-board-actor-layer{position:absolute;inset:0;z-index:30;pointer-events:none;overflow:hidden}
+#totm-board-actor-layer .totm-stage-actor{position:absolute;z-index:31!important;pointer-events:auto!important;display:block!important;visibility:visible!important;opacity:1!important}
+#totm-board-actor-layer .totm-stage-actor img{display:block;max-height:48vh;max-width:34vw;object-fit:contain}
 #totm-topbar{display:flex;align-items:center;justify-content:space-between;padding:8px 12px;z-index:6;position:relative;flex-shrink:0;flex-wrap:wrap;gap:4px}
 .totm-topbar-left,.totm-topbar-right{display:flex;align-items:center;gap:4px;flex-wrap:wrap}
 #totm-st-slot{display:flex;align-items:center;max-width:100%;overflow:hidden;flex:0 1 auto}
@@ -234,6 +237,7 @@ body.totm-active #hotbar{opacity:0!important;pointer-events:none!important}
 .totm-scene-label{font-size:13px;font-weight:600;color:var(--totm-text)}
 .totm-live-badge{display:inline-flex;align-items:center;gap:4px;padding:3px 8px;border-radius:12px;font-size:9px;font-weight:700;letter-spacing:1px;text-transform:uppercase}
 .totm-live-badge.is-live{background:rgba(68,170,136,.2);color:#6ec9a0;border:1px solid rgba(68,170,136,.3)}.totm-live-badge.is-gm{background:rgba(160,57,46,.2);color:#d07060;border:1px solid rgba(160,57,46,.3)}
+.totm-build-marker{display:inline-flex;align-items:center;padding:2px 6px;border:1px solid rgba(255,255,255,.1);border-radius:999px;color:var(--totm-text-faint);font-size:9px;font-weight:800;line-height:1}
 .totm-live-dot{width:6px;height:6px;border-radius:50%;background:currentColor;animation:totm-pulse 2s ease-in-out infinite}
 @keyframes totm-pulse{0%,100%{opacity:1}50%{opacity:.3}}
 .totm-tb-btn{background:var(--totm-panel);border:1px solid var(--totm-panel-border);color:var(--totm-text-dim);padding:4px 8px;border-radius:var(--totm-radius);cursor:pointer;font-size:10px;font-family:inherit;display:flex;align-items:center;gap:4px;transition:all 180ms ease;white-space:nowrap;position:relative}

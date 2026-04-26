@@ -17,8 +17,6 @@ export function buildStageSceneImages({d,scene,deps}){
     getQuestPinImage,
     getSceneEntityImage,
     getSceneEntityLayout,
-    getStageActorImage,
-    getStageActorLayout,
     SCENE_IMAGE_SWAP_MS
   }=deps;
 
@@ -41,13 +39,6 @@ export function buildStageSceneImages({d,scene,deps}){
     const questName=foundry.utils.escapeHTML(String(p.name||p.label||"Quest"));
     sceneImgs.push(`<div class="totm-scene-img totm-scene-quest" data-qidx="${i}" data-quest-id="${attr(p.id||"")}" title="${questName}" aria-label="${questName}" style="left:${p.posX??50}%;top:${p.posY??50}%;transform:translate(-50%,-50%) scale(${(p.scale??100)/100});"><img src="${attr(img)}" alt="${questName}"/></div>`);
   });
-  if(d.boardActorsVisible!==false){
-    (d.boardActors||[]).forEach((entry,i)=>{
-      const img=getStageActorImage(entry,d,{inCombat:!!d.combatActive});
-      const layout=getStageActorLayout(entry,{inCombat:!!d.combatActive});
-      sceneImgs.push(`<div class="totm-scene-img totm-stage-actor" data-baidx="${i}" data-board-actor-id="${attr(entry.id||"")}" data-actor-id="${attr(entry.actorId||"")}" style="left:${layout.posX}%;top:${layout.posY}%;transform:translate(-50%,-50%) scale(${layout.scale/100});"><img src="${attr(img)}" alt="${attr(entry.name||"Character")}"/></div>`);
-    });
-  }
   (d.actors||[]).forEach((a,i)=>{
     if(!a.pinVisible)return;
     const pinImg=getPinImage(a),pinSize=Number(a.pinSize||64),pinColor=getActorPinColor(a.id);
@@ -467,6 +458,7 @@ export function bindEnemyStageEvents({el,scene,d,deps}){
   };
 
   bindEnemyDropZone(el.querySelector("#totm-stage"));
+  bindEnemyDropZone(el.querySelector("#totm-board-actor-layer"));
   bindEnemyDropZone(el.querySelector("#totm-stage-wrap"));
   bindEnemyDropZone(el.querySelector("#totm-enemy-wrap"));
   bindEnemyDropZone(el.querySelector("#totm-enemy-bar"));
@@ -531,7 +523,7 @@ export function bindEnemyStageEvents({el,scene,d,deps}){
     openEnemyPosition(+card.dataset.eidx,card);
   });
 
-  const stage=el.querySelector("#totm-stage");
+  const stage=el.querySelector("#totm-stage-wrap")||el.querySelector("#totm-stage");
   stage?.addEventListener("click",async e=>{
     const enemy=e.target.closest(".totm-scene-enemy");
     if(enemy){

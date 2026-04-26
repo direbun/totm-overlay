@@ -33,6 +33,7 @@ let REFRESH_QUEUED=false;
 let REFRESH_SCENE_ID=null;
 let TOTM_GLOBAL_CLICK_BOUND=false;
 const TOTM_IMAGE_PRELOADS=new Set();
+const BOARD_RENDER_WARNED_SCENES=new Set();
 function preloadTotmImage(src){
   src=String(src||"").trim();
   if(!src||TOTM_IMAGE_PRELOADS.has(src))return;
@@ -387,59 +388,96 @@ const clampStageValue=(value,min,max,fallback)=>Number.isFinite(+value)?Math.max
 function cacheSceneData(scene,d){
   if(scene?.id)SCENE_DATA_CACHE.set(scene.id,cloneData(normalizeSceneData(d)));
 }
-function repairBoardActorsData(d,{forceVisible=false}={}){
-  if(!d)return false;
-  let changed=false;
+function normalizeBoardActorEntry(entry,actor){
+  if(!entry||!actor)return null;
+  entry.id ||= foundry.utils.randomID();
+  entry.kind="board-actor";
+  entry.actorId ||= actor.id;
+  entry.actorId=actor.id;
+  entry.name ||= actor.name||"Character";
+  entry.image ||= getStageActorDefaultImage(actor);
+  entry.posX=clampStageValue(entry.posX,0,100,50);
+  entry.posY=clampStageValue(entry.posY,0,100,58);
+  entry.scale=clampStageValue(entry.scale,MIN_STAGE_ENTITY_SCALE,MAX_STAGE_ENTITY_SCALE,100);
+  if(entry.combatPosX===undefined)entry.combatPosX=null;
+  else if(entry.combatPosX!==null)entry.combatPosX=Number.isFinite(+entry.combatPosX)?clampStageValue(entry.combatPosX,0,100,50):null;
+  if(entry.combatPosY===undefined)entry.combatPosY=null;
+  else if(entry.combatPosY!==null)entry.combatPosY=Number.isFinite(+entry.combatPosY)?clampStageValue(entry.combatPosY,0,100,58):null;
+  if(entry.combatScale===undefined)entry.combatScale=null;
+  else if(entry.combatScale!==null)entry.combatScale=Number.isFinite(+entry.combatScale)?clampStageValue(entry.combatScale,MIN_STAGE_ENTITY_SCALE,MAX_STAGE_ENTITY_SCALE,100):null;
+  return entry;
+}
+function normalizeBoardActorSavedEntry(entry){
+  if(!entry||typeof entry!=="object")return null;
+  entry.id ||= foundry.utils.randomID();
+  entry.kind="board-actor";
+  entry.name ||= "Character";
+  entry.image ||= "icons/svg/mystery-man.svg";
+  entry.posX=clampStageValue(entry.posX,0,100,50);
+  entry.posY=clampStageValue(entry.posY,0,100,58);
+  entry.scale=clampStageValue(entry.scale,MIN_STAGE_ENTITY_SCALE,MAX_STAGE_ENTITY_SCALE,100);
+  if(entry.combatPosX===undefined)entry.combatPosX=null;
+  else if(entry.combatPosX!==null)entry.combatPosX=Number.isFinite(+entry.combatPosX)?clampStageValue(entry.combatPosX,0,100,50):null;
+  if(entry.combatPosY===undefined)entry.combatPosY=null;
+  else if(entry.combatPosY!==null)entry.combatPosY=Number.isFinite(+entry.combatPosY)?clampStageValue(entry.combatPosY,0,100,58):null;
+  if(entry.combatScale===undefined)entry.combatScale=null;
+  else if(entry.combatScale!==null)entry.combatScale=Number.isFinite(+entry.combatScale)?clampStageValue(entry.combatScale,MIN_STAGE_ENTITY_SCALE,MAX_STAGE_ENTITY_SCALE,100):null;
+  return entry;
+}
+function repairBoardActors(d){
+  if(!d)return {changed:false,removed:0,repaired:0};
   if(!Array.isArray(d.boardActors)){
     d.boardActors=[];
-    changed=true;
+    return {changed:true,removed:0,repaired:0};
   }
-  const seen=new Set(),next=[];
-  for(const raw of d.boardActors){
-    const actor=game.actors.get(raw?.actorId);
+  let changed=false,removed=0,repaired=0;
+  const seen=new Set();
+  d.boardActors=d.boardActors.filter(entry=>{
+    const actor=game.actors.get(entry?.actorId);
     if(!actor){
+      if(!isGM()&&entry&&typeof entry==="object"){
+        const key=entry.actorId||entry.id;
+        if(key&&seen.has(key)){
+          removed++;
+          changed=true;
+          return false;
+        }
+        if(key)seen.add(key);
+        const before=JSON.stringify(entry);
+        normalizeBoardActorSavedEntry(entry);
+        if(before!==JSON.stringify(entry)){
+          repaired++;
+          changed=true;
+        }
+        return true;
+      }
+      removed++;
       changed=true;
-      continue;
+      return false;
     }
     if(seen.has(actor.id)){
+      removed++;
       changed=true;
-      continue;
+      return false;
     }
     seen.add(actor.id);
-    const entry=raw&&typeof raw==="object"?raw:{};
-    const set=(key,value)=>{if(entry[key]!==value){entry[key]=value;changed=true;}};
-    if(!entry.id)set("id",foundry.utils.randomID());
-    set("kind","board-actor");
-    set("actorId",actor.id);
-    if(!String(entry.name||"").trim())set("name",actor.name||"Character");
-    if(!String(entry.image||"").trim())set("image",getStageActorDefaultImage(actor));
-    const posX=clampStageValue(entry.posX,0,100,50);
-    const posY=clampStageValue(entry.posY,0,100,58);
-    const scale=clampStageValue(entry.scale,MIN_STAGE_ENTITY_SCALE,MAX_STAGE_ENTITY_SCALE,100);
-    if(entry.posX!==posX)set("posX",posX);
-    if(entry.posY!==posY)set("posY",posY);
-    if(entry.scale!==scale)set("scale",scale);
-    if(entry.combatPosX!==null&&entry.combatPosX!==undefined){
-      const value=Number.isFinite(+entry.combatPosX)?clampStageValue(entry.combatPosX,0,100,50):null;
-      if(entry.combatPosX!==value)set("combatPosX",value);
-    }else if(entry.combatPosX===undefined)set("combatPosX",null);
-    if(entry.combatPosY!==null&&entry.combatPosY!==undefined){
-      const value=Number.isFinite(+entry.combatPosY)?clampStageValue(entry.combatPosY,0,100,58):null;
-      if(entry.combatPosY!==value)set("combatPosY",value);
-    }else if(entry.combatPosY===undefined)set("combatPosY",null);
-    if(entry.combatScale!==null&&entry.combatScale!==undefined){
-      const value=Number.isFinite(+entry.combatScale)?clampStageValue(entry.combatScale,MIN_STAGE_ENTITY_SCALE,MAX_STAGE_ENTITY_SCALE,100):null;
-      if(entry.combatScale!==value)set("combatScale",value);
-    }else if(entry.combatScale===undefined)set("combatScale",null);
-    next.push(entry);
-  }
-  if(next.length!==d.boardActors.length)changed=true;
-  d.boardActors=next;
-  if(forceVisible&&d.boardActorsVisible===false){
+    const before=JSON.stringify(entry);
+    normalizeBoardActorEntry(entry,actor);
+    if(before!==JSON.stringify(entry)){
+      repaired++;
+      changed=true;
+    }
+    return true;
+  });
+  return {changed,removed,repaired};
+}
+function repairBoardActorsData(d,{forceVisible=false}={}){
+  const result=repairBoardActors(d);
+  if(d&&forceVisible&&d.boardActorsVisible===false){
     d.boardActorsVisible=true;
-    changed=true;
+    result.changed=true;
   }
-  return changed;
+  return result.changed;
 }
 function hasSceneEntityAltImage(entity){
   return !!String(entity?.altImage||"").trim();
@@ -510,31 +548,57 @@ function toggleSceneEntityImage(entity){
   markSceneEntityImageSwap(entity);
   return true;
 }
+async function commitBoardActorPlacement(scene,entryId,actorId,proxy,{combat=false}={}){
+  const d=getData(scene);
+  if(!Array.isArray(d.boardActors))d.boardActors=[];
+  let entry=d.boardActors.find(e=>e?.id===entryId);
+  if(!entry&&actorId)entry=d.boardActors.find(e=>e?.actorId===actorId);
+  const actor=game.actors.get(actorId||entry?.actorId);
+  if(!entry||!actor){
+    ui.notifications.error("Could not commit board character placement.");
+    return;
+  }
+  normalizeBoardActorEntry(entry,actor);
+  d.boardActorsVisible=true;
+  if(combat){
+    entry.combatPosX=clampStageValue(proxy?.posX,0,100,entry.combatPosX??entry.posX??50);
+    entry.combatPosY=clampStageValue(proxy?.posY,0,100,entry.combatPosY??entry.posY??58);
+    entry.combatScale=clampStageValue(proxy?.scale,MIN_STAGE_ENTITY_SCALE,MAX_STAGE_ENTITY_SCALE,entry.combatScale??entry.scale??100);
+  }else{
+    entry.posX=clampStageValue(proxy?.posX,0,100,entry.posX??50);
+    entry.posY=clampStageValue(proxy?.posY,0,100,entry.posY??58);
+    entry.scale=clampStageValue(proxy?.scale,MIN_STAGE_ENTITY_SCALE,MAX_STAGE_ENTITY_SCALE,entry.scale??100);
+  }
+  repairBoardActorsData(d,{forceVisible:true});
+  cacheSceneData(scene,d);
+  await saveData(scene,d);
+  emit();
+  refreshUI(scene);
+}
 function openStageActorLayoutPos(scene,d,entry,{combat=false}={}){
-  const layout=getStageActorLayout(entry,{inCombat:combat});
+  const live=getData(scene);
+  repairBoardActorsData(live,{forceVisible:true});
+  const entryId=entry?.id||"";
+  const actorId=entry?.actorId||"";
+  const liveEntry=live.boardActors?.find(e=>e?.id===entryId)||live.boardActors?.find(e=>e?.actorId===actorId);
+  const actor=game.actors.get(liveEntry?.actorId||actorId);
+  if(!liveEntry||!actor){
+    ui.notifications.error("Could not open board character placement controls.");
+    return;
+  }
+  normalizeBoardActorEntry(liveEntry,actor);
+  const layout=getStageActorLayout(liveEntry,{inCombat:combat});
   const proxy={
     kind:"board-actor",
-    id:entry.id,
-    name:`${entry.name}${combat?" (Combat)":" (Scene)"}`,
-    image:getStageActorImage(entry,d,{inCombat:combat}),
+    id:liveEntry.id,
+    actorId:liveEntry.actorId,
+    name:`${liveEntry.name}${combat?" (Combat)":" (Scene)"}`,
+    image:getStageActorImage(liveEntry,live,{inCombat:combat}),
     posX:layout.posX,
     posY:layout.posY,
     scale:layout.scale
   };
-  openDragPos(proxy,scene,d,async()=>{
-    if(combat){
-      entry.combatPosX=proxy.posX;
-      entry.combatPosY=proxy.posY;
-      entry.combatScale=proxy.scale;
-    }else{
-      entry.posX=proxy.posX;
-      entry.posY=proxy.posY;
-      entry.scale=proxy.scale;
-    }
-    await saveData(scene,d);
-    emit();
-    refreshUI(scene);
-  });
+  openDragPos(proxy,scene,live,()=>commitBoardActorPlacement(scene,liveEntry.id,liveEntry.actorId,proxy,{combat}));
 }
 const makeEnemyInstanceId=()=>foundry.utils.randomID();
 const enemyTargetId=e=>e?.instanceId||e?.id;
@@ -694,7 +758,7 @@ async function clearBoardActors(scene=game.scenes.viewed,{notify=true}={}){
   refreshUI(scene);
   if(notify)ui.notifications.warn("Cleared TOTM board character placements.");
 }
-async function repairBoardActors(scene=game.scenes.viewed,{notify=true}={}){
+async function repairBoardActorsForScene(scene=game.scenes.viewed,{notify=true}={}){
   if(!game.user.isGM||!scene||!isTOTM(scene))return;
   const d=getData(scene);
   repairBoardActorsData(d,{forceVisible:true});
@@ -704,6 +768,45 @@ async function repairBoardActors(scene=game.scenes.viewed,{notify=true}={}){
   emit();
   refreshUI(scene);
   if(notify)ui.notifications.info("Repaired/revealed TOTM board character placements.");
+}
+async function revealBoardActors(scene=game.scenes.viewed,{notify=true}={}){
+  if(!game.user.isGM||!scene||!isTOTM(scene))return;
+  const d=getData(scene);
+  repairBoardActorsData(d,{forceVisible:true});
+  d.boardActorsVisible=true;
+  cacheSceneData(scene,d);
+  await saveData(scene,d);
+  emit();
+  refreshUI(scene);
+  if(notify)ui.notifications.info("Revealed/repaired TOTM board characters.");
+}
+function debugBoardActors(scene=game.scenes.viewed){
+  if(!game.user.isGM||!scene)return null;
+  const d=getData(scene);
+  const dom=[...document.querySelectorAll("#totm-board-actor-layer .totm-stage-actor")];
+  const report={
+    scene:scene?.name,
+    boardActorsVisible:d.boardActorsVisible,
+    boardActors:d.boardActors,
+    domCount:dom.length,
+    dom:dom.map(el=>{
+      const rect=el.getBoundingClientRect();
+      const style=getComputedStyle(el);
+      return {
+        actorId:el.dataset.actorId,
+        boardActorId:el.dataset.boardActorId,
+        rect:rect.toJSON?.()||{x:rect.x,y:rect.y,width:rect.width,height:rect.height},
+        display:style.display,
+        visibility:style.visibility,
+        opacity:style.opacity,
+        zIndex:style.zIndex,
+        img:el.querySelector("img")?.src
+      };
+    })
+  };
+  console.warn("TOTM board actor debug", report);
+  ui.notifications.info(`Board actors: ${d.boardActors?.length||0}, DOM: ${dom.length}`);
+  return report;
 }
 function reorderStageActorEntries(d,fromIndex,toIndex){
   if(!Array.isArray(d.boardActors))d.boardActors=[];
@@ -716,39 +819,51 @@ function reorderStageActorEntries(d,fromIndex,toIndex){
   return entry;
 }
 async function moveStageActor(scene,d,idx,delta){
+  d=getData(scene);
+  repairBoardActorsData(d);
   const targetIdx=Math.max(0,Math.min((d.boardActors?.length||1)-1,idx+delta));
   if(targetIdx===idx)return;
   reorderStageActorEntries(d,idx,targetIdx);
+  cacheSceneData(scene,d);
   await saveData(scene,d);
   emit();
   refreshUI(scene);
 }
 async function moveStageActorToEdge(scene,d,idx,edge="front"){
+  d=getData(scene);
+  repairBoardActorsData(d);
   if(!Array.isArray(d.boardActors)||!d.boardActors[idx])return;
   const targetIdx=edge==="back"?0:d.boardActors.length-1;
   if(targetIdx===idx)return;
   reorderStageActorEntries(d,idx,targetIdx);
+  cacheSceneData(scene,d);
   await saveData(scene,d);
   emit();
   refreshUI(scene);
 }
 async function removeStageActor(scene,d,entryId){
+  d=getData(scene);
+  repairBoardActorsData(d);
   if(!entryId||!Array.isArray(d.boardActors))return;
   const idx=d.boardActors.findIndex(entry=>entry?.id===entryId);
   if(idx<0)return;
   const ok=await confirmDestructive({title:"Remove Board Character?",content:`${d.boardActors[idx]?.name||"Character"} will be removed from the stage.`,yes:"Remove"});
   if(!ok)return;
   d.boardActors.splice(idx,1);
+  cacheSceneData(scene,d);
   await saveData(scene,d);
   emit();
   refreshUI(scene);
 }
 async function addStageActor(scene,d,actor,opts={}){
   if(!actor||actor.type!=="character")return null;
+  d=getData(scene);
+  if(!Array.isArray(d.boardActors))d.boardActors=[];
   repairBoardActorsData(d,{forceVisible:true});
+  d.boardActorsVisible=true;
   const existing=d.boardActors.find(entry=>entry?.actorId===actor.id);
   if(existing){
-    d.boardActorsVisible=true;
+    normalizeBoardActorEntry(existing,actor);
     if(Number.isFinite(opts.posX))existing.posX=clampStageValue(opts.posX,0,100,existing.posX??50);
     if(Number.isFinite(opts.posY))existing.posY=clampStageValue(opts.posY,0,100,existing.posY??58);
     if(Number.isFinite(opts.scale))existing.scale=clampStageValue(opts.scale,MIN_STAGE_ENTITY_SCALE,MAX_STAGE_ENTITY_SCALE,existing.scale??100);
@@ -757,18 +872,27 @@ async function addStageActor(scene,d,actor,opts={}){
     await saveData(scene,d);
     emit();
     refreshUI(scene);
-    setTimeout(()=>openStageActorLayoutPos(scene,d,existing,{combat:false}),30);
     ui.notifications.info(`${actor.name} is already on the board. Opening placement controls.`);
+    setTimeout(()=>{
+      const fresh=getData(scene);
+      const freshEntry=fresh.boardActors?.find(e=>e.actorId===actor.id);
+      if(freshEntry)openStageActorLayoutPos(scene,fresh,freshEntry,{combat:false});
+    },50);
     return existing;
   }
-  const entry=makeStageActorEntry(actor,{posX:Number.isFinite(opts.posX)?opts.posX:50,posY:Number.isFinite(opts.posY)?opts.posY:58,scale:Number.isFinite(opts.scale)?opts.scale:100});
+  const entry=makeStageActorEntry(actor,{posX:Number.isFinite(+opts.posX)?clampStageValue(opts.posX,0,100,50):50,posY:Number.isFinite(+opts.posY)?clampStageValue(opts.posY,0,100,58):58,scale:Number.isFinite(+opts.scale)?clampStageValue(opts.scale,MIN_STAGE_ENTITY_SCALE,MAX_STAGE_ENTITY_SCALE,100):100});
+  normalizeBoardActorEntry(entry,actor);
   d.boardActors.push(entry);
   d.boardActorsVisible=true;
   cacheSceneData(scene,d);
   await saveData(scene,d);
   emit();
   refreshUI(scene);
-  setTimeout(()=>openStageActorLayoutPos(scene,d,entry,{combat:false}),30);
+  setTimeout(()=>{
+    const fresh=getData(scene);
+    const freshEntry=fresh.boardActors?.find(e=>e.id===entry.id);
+    if(freshEntry)openStageActorLayoutPos(scene,fresh,freshEntry,{combat:false});
+  },50);
   return entry;
 }
 function promptQuestPinName(defaultName="Quest"){
@@ -886,8 +1010,11 @@ function getPinImage(entry){return entry?.pinImg||entry?.img||entry?.image||"ico
 async function saveAndRefresh(scene,d){await saveData(scene,d);emit();refreshUI(scene);}
 async function toggleBoardActorsVisibility(scene,d=getData(scene)){
   if(!scene)return;
-  d.boardActorsVisible=d.boardActorsVisible===false;
-  await saveAndRefresh(scene,d);
+  const live=getData(scene);
+  repairBoardActorsData(live);
+  live.boardActorsVisible=live.boardActorsVisible===false;
+  if(live.boardActorsVisible)repairBoardActorsData(live,{forceVisible:true});
+  await saveAndRefresh(scene,live);
 }
 async function setCombatActive(scene,d=getData(scene),active=true){
   if(!scene)return;
@@ -1025,6 +1152,35 @@ function renderGmOnboarding(){
   </div></div>`;
 }
 
+function renderBoardActors(scene,d){
+  if(d.boardActorsVisible===false)return "";
+  repairBoardActors(d);
+  return (d.boardActors||[]).map((entry,i)=>{
+    const actor=game.actors.get(entry?.actorId);
+    if(actor)normalizeBoardActorEntry(entry,actor);
+    else normalizeBoardActorSavedEntry(entry);
+    const img=getStageActorImage(entry,d,{inCombat:!!d.combatActive})||getStageActorDefaultImage(actor);
+    const layout=getStageActorLayout(entry,{inCombat:!!d.combatActive});
+    return `<div class="totm-scene-img totm-stage-actor" data-baidx="${i}" data-board-actor-id="${attr(entry.id||"")}" data-actor-id="${attr(entry.actorId||"")}" style="${attr(`left:${layout.posX}%;top:${layout.posY}%;transform:translate(-50%,-50%) scale(${layout.scale/100});`)}"><img src="${attr(img)}" alt="${attr(entry.name||actor?.name||"Character")}"/></div>`;
+  }).join("");
+}
+
+function warnIfBoardActorsFailedToRender(scene){
+  if(!game.user?.isGM||!scene||!isTOTM(scene))return;
+  const d=getData(scene);
+  const count=d.boardActors?.length||0;
+  const domCount=document.querySelectorAll("#totm-board-actor-layer .totm-stage-actor").length;
+  const key=scene.id||scene.name||"current";
+  if(count>0&&d.boardActorsVisible!==false&&domCount===0){
+    if(BOARD_RENDER_WARNED_SCENES.has(key))return;
+    BOARD_RENDER_WARNED_SCENES.add(key);
+    console.warn("TOTM board actor render failure", {scene:scene.name,boardActorsVisible:d.boardActorsVisible,boardActors:d.boardActors,domCount});
+    ui.notifications.warn("TOTM has board characters saved, but none rendered. Open Board Characters manager or run window.TOTMOverlay.debugBoardActors().");
+    return;
+  }
+  BOARD_RENDER_WARNED_SCENES.delete(key);
+}
+
 async function addVisibleSceneActors(scene,d){
   if(!scene||!isGM())return;
   const existing=new Set((d.actors||[]).map(a=>a.id));
@@ -1096,7 +1252,8 @@ function refreshUI(scene){
   if(hadLayout)el.classList.add("totm-soft-refresh");
   if(!isGM()&&!d.shared){el.innerHTML=`<div style="display:flex;align-items:center;justify-content:center;width:100%;height:100%;color:var(--totm-text-faint);font-size:14px;">The GM is preparing...</div>`;if(hadLayout)requestAnimationFrame(()=>el.classList.remove("totm-soft-refresh"));return;}
 
-  const sceneImgs=buildStageSceneImagesModule({d,scene,deps:{getPinImage,canControlActorPin,getActorPinColor,getGmPinColor,canControlGmPin,getTargets,normalizeEnemyEntry,getEncounterActor,ENEMY_FADE_MS,enemyTargetId,getQuestPinImage,getSceneEntityImage,getSceneEntityLayout,getStageActorImage,getStageActorLayout,SCENE_IMAGE_SWAP_MS}});
+  const sceneImgs=buildStageSceneImagesModule({d,scene,deps:{getPinImage,canControlActorPin,getActorPinColor,getGmPinColor,canControlGmPin,getTargets,normalizeEnemyEntry,getEncounterActor,ENEMY_FADE_MS,enemyTargetId,getQuestPinImage,getSceneEntityImage,getSceneEntityLayout,SCENE_IMAGE_SWAP_MS}});
+  const boardActorHtml=renderBoardActors(scene,d);
 
   // Background with position/zoom
   const bgStyle=d.background?attr(`background-image:${cssUrl(d.background)};background-position:${d.bgPosX??50}% ${d.bgPosY??50}%;background-size:${getBgSizeCss(d.bgZoom,d.bgStretch)};background-repeat:no-repeat`):"";
@@ -1112,7 +1269,7 @@ function refreshUI(scene){
         <div id="totm-main">
           ${isGM()?renderTopbar(d,scene):""}
           ${renderClockDock()}
-          <div id="totm-stage-wrap"><div id="totm-bg-layer" class="${bgFadeClass}" style="${bgStyle}"></div><div id="totm-stage">${sceneImgs.join("")}</div><div id="totm-art-area"><div id="totm-art-display">${renderArt(d)}</div></div>${showOnboarding?renderGmOnboarding():""}</div>
+          <div id="totm-stage-wrap"><div id="totm-bg-layer" class="${bgFadeClass}" style="${bgStyle}"></div><div id="totm-stage">${sceneImgs.join("")}</div><div id="totm-board-actor-layer">${boardActorHtml}</div><div id="totm-art-area"><div id="totm-art-display">${renderArt(d)}</div></div>${showOnboarding?renderGmOnboarding():""}</div>
           ${d.narration?`<div id="totm-narration"><div class="totm-narration-inner"><div class="totm-narration-text">${esc(d.narration)}</div></div></div>`:""}
         </div>
       </div>
@@ -1121,6 +1278,7 @@ function refreshUI(scene){
     </div>`;
   bindEvents(scene,d);bindStagePins(scene,d,el);if(!hadLayout){fitSB();syncHotbarPosition();}
   if(hadLayout)requestAnimationFrame(()=>el.classList.remove("totm-soft-refresh"));
+  requestAnimationFrame(()=>warnIfBoardActorsFailedToRender(scene));
 }
 
 function renderCards(d,ctx=makeRenderContext(game.scenes.viewed,d)){return renderPlayerCardsModule({d,scene:game.scenes.viewed,deps:{isGM,getConds,MODULE_ID,getActorStatus,isActorTargeted,getRes:(entry,_scene,opts)=>ctx.cachedRes(entry,opts),getImg,getFabulaPoints,rPath,renderBars,canControlActorPin,esc,attr,cssUrl,actorById:ctx.actorById}});}
@@ -1158,7 +1316,7 @@ function refreshClockDockOnly(scene=game.scenes.viewed){
   return true;
 }
 
-function renderTopbar(d,scene){return renderTopbarModule({d,scene,deps:{hasClockModule,getClockEntries,getTimeDisplayText:getSimpleTimekeepingText,getWeatherDisplayText,hasSimpleTimekeeping}});}
+function renderTopbar(d,scene){return renderTopbarModule({d,scene,deps:{hasClockModule,getClockEntries,getTimeDisplayText:getSimpleTimekeepingText,getWeatherDisplayText,hasSimpleTimekeeping,moduleVersion:game.modules.get(MODULE_ID)?.version||""}});}
 
 // -- EVENTS --
 function bindEvents(scene,d){
@@ -2290,6 +2448,7 @@ function openBoardActorMgr(scene,d=getData(scene)){
     render:html=>{
       const root=html[0],list=root.querySelector("[data-board-list]");
       const saveBoard=async({notify="",refresh=true}={})=>{
+        d=getData(scene);
         repairBoardActorsData(d,{forceVisible:true});
         cacheSceneData(scene,d);
         await saveData(scene,d);
@@ -2298,6 +2457,7 @@ function openBoardActorMgr(scene,d=getData(scene)){
         if(notify)ui.notifications.info(notify);
       };
       const render=()=>{
+        d=getData(scene);
         repairBoardActorsData(d);
         const rows=d.boardActors||[];
         list.innerHTML=rows.length?rows.map((entry,idx)=>{
@@ -2312,6 +2472,7 @@ function openBoardActorMgr(scene,d=getData(scene)){
             </div>
             <div class="totm-board-mgr-actions">
               <button type="button" data-board-act="move"><i class="fas fa-arrows-up-down-left-right"></i> Move</button>
+              <button type="button" data-board-act="front"><i class="fas fa-layer-group"></i> Bring To Front</button>
               <button type="button" data-board-act="repair-one"><i class="fas fa-wrench"></i> Repair</button>
               <button type="button" class="is-danger" data-board-act="remove"><i class="fas fa-trash"></i> Remove</button>
             </div>
@@ -2331,7 +2492,7 @@ function openBoardActorMgr(scene,d=getData(scene)){
           await saveBoard({notify:"Revealed TOTM board character placements."});
           render();
         }else if(act==="repair"){
-          await repairBoardActors(scene,{notify:true});
+          await repairBoardActorsForScene(scene,{notify:true});
           d=getData(scene);
           render();
         }else if(act==="clear"){
@@ -2344,6 +2505,10 @@ function openBoardActorMgr(scene,d=getData(scene)){
           d.boardActorsVisible=true;
           await saveBoard({refresh:true});
           openStageActorLayoutPos(scene,d,entry,{combat:false});
+          render();
+        }else if(act==="front"&&entry){
+          await moveStageActorToEdge(scene,d,idx,"front");
+          d=getData(scene);
           render();
         }else if(act==="repair-one"&&entry){
           repairBoardActorsData(d,{forceVisible:true});
@@ -2430,7 +2595,7 @@ async function closeActiveDragOverlay({save=false}={}){
   if(typeof activeDragOverlayCleanup==="function")activeDragOverlayCleanup();
 }
 function openDragPos(entity,scene,d,onDone,onDelete){
-  const main=document.getElementById("totm-stage");if(!main)return;
+  const main=document.getElementById("totm-stage-wrap")||document.getElementById("totm-stage");if(!main)return;
   const hiddenSourceEls=[];
   if(entity?.id)main.querySelectorAll(`.totm-scene-prop[data-prop-id="${entity.id}"]`).forEach(node=>{node.classList.add("is-being-positioned");hiddenSourceEls.push(node);});
   if(entity?.kind==="board-actor"&&entity?.id)main.querySelectorAll(`.totm-stage-actor[data-board-actor-id="${entity.id}"]`).forEach(node=>{node.classList.add("is-being-positioned");hiddenSourceEls.push(node);});
@@ -2534,7 +2699,7 @@ function openDragPos(entity,scene,d,onDone,onDelete){
 }
 
 function openMultiDragPos(entities,scene,d,onDone){
-  const main=document.getElementById("totm-stage");if(!main||!entities?.length)return;
+  const main=document.getElementById("totm-stage-wrap")||document.getElementById("totm-stage");if(!main||!entities?.length)return;
   const cleanups=[];
   entities.forEach((entity,idx)=>{
     const hiddenSourceEls=[];
@@ -2738,9 +2903,9 @@ Hooks.on("renderHotbar",()=>{const s=game.scenes.viewed;if(s&&document.body.clas
 Hooks.on("updateWorldTime",()=>{const s=game.scenes.viewed;if(s&&document.body.classList.contains("totm-active")&&isTOTM(s))requestSceneRefresh(s);});
 Hooks.on("pauseGame",()=>{const s=game.scenes.viewed;if(s&&document.body.classList.contains("totm-active")&&isTOTM(s))requestSceneRefresh(s);});
 Hooks.on("updateSetting",setting=>{if(setting.key==="simple-timekeeping.configuration"){const s=game.scenes.viewed;if(s&&document.body.classList.contains("totm-active")&&isTOTM(s))requestSceneRefresh(s);}});
-Hooks.once("init",()=>{console.log(`${MODULE_ID} | v8`);regSettings();});
+Hooks.once("init",()=>{console.info("TOTM Overlay loaded",{version:game.modules.get("totm-overlay")?.version,time:new Date().toISOString()});regSettings();});
 Hooks.once("ready",async()=>{game.socket.on(`module.${MODULE_ID}`,onSock);injectUI();bindTotmGlobalClickHandler();window.addEventListener("resize",()=>{if(document.body.classList.contains("totm-active")){ensureSidebarExpanded();fitSB();syncHotbarPosition();}});document.addEventListener("click",e=>{if(!document.body.classList.contains("totm-active"))return;const btn=e.target.closest?.("#sidebar .collapse, #sidebar #sidebar-collapse, #sidebar [data-action='collapse']");if(!btn)return;e.preventDefault();e.stopPropagation();ensureSidebarExpanded();},true);const s=game.scenes.viewed;if(s&&isTOTM(s)){const d=getData(s);const changedEnemies=await ensureEnemyTokenDocs(s,d),changedPlayers=await ensurePlayerTokenDocs(s,d);if(changedEnemies||changedPlayers)await saveData(s,d);activate(s);}});
-Hooks.once("ready",()=>{window.TOTMOverlay={...(window.TOTMOverlay||{}),isTOTM:s=>isTOTM(s||game.scenes.viewed),toggle:async()=>{const s=game.scenes.viewed;if(s)await toggleTOTM(s);},clearBoardActors:async(scene=game.scenes.viewed)=>{if(!game.user.isGM||!scene||!isTOTM(scene))return;await clearBoardActors(scene,{notify:true});},repairBoardActors:async(scene=game.scenes.viewed)=>{if(!game.user.isGM||!scene||!isTOTM(scene))return;await repairBoardActors(scene,{notify:true});}};});
+Hooks.once("ready",()=>{window.TOTMOverlay={...(window.TOTMOverlay||{}),isTOTM:s=>isTOTM(s||game.scenes.viewed),toggle:async()=>{const s=game.scenes.viewed;if(s)await toggleTOTM(s);},debugBoardActors:(scene=game.scenes.viewed)=>debugBoardActors(scene),clearBoardActors:async(scene=game.scenes.viewed)=>{if(!game.user.isGM||!scene||!isTOTM(scene))return;await clearBoardActors(scene,{notify:true});},repairBoardActors:async(scene=game.scenes.viewed)=>{if(!game.user.isGM||!scene||!isTOTM(scene))return;await repairBoardActorsForScene(scene,{notify:true});},revealBoardActors:async(scene=game.scenes.viewed)=>{if(!game.user.isGM||!scene||!isTOTM(scene))return;await revealBoardActors(scene,{notify:true});}};});
 Hooks.once("ready",()=>{window.addEventListener("keydown",async e=>{if(e.repeat||e.key.toLowerCase()!=="t"||typingInField(e)||!document.body.classList.contains("totm-active"))return;const scene=game.scenes.viewed;if(!scene||!isTOTM(scene))return;const d=getData(scene),hoveredPlayer=document.querySelector("#totm-ui .totm-actor-card:hover"),hoveredStageActor=document.querySelector("#totm-ui .totm-stage-actor:hover"),hoveredEnemy=document.querySelector("#totm-ui .totm-scene-enemy:hover, #totm-ui .totm-enemy-card:hover");e.preventDefault();const hoveredActorId=hoveredPlayer?.dataset.actorId||hoveredStageActor?.dataset.actorId;if(hoveredActorId){if(!await togglePlayerTarget(hoveredActorId,scene))ui.notifications.warn("No scene token found for that player.");updateTargetHighlights(scene,d);return;}if(d.combatActive&&hoveredEnemy?.dataset.targetId){await toggleEnemyTarget(scene,d,hoveredEnemy.dataset.targetId);return;}if(document.querySelector("#totm-ui #totm-actor-list:hover")){await targetNextPlayer(scene,d);return;}if(d.combatActive)await targetNextEnemy(scene,d);});});
 Hooks.once("ready",()=>{window.addEventListener("keydown",async e=>{if(e.repeat||e.key.toLowerCase()!=="v"||typingInField(e)||!document.body.classList.contains("totm-active"))return;const scene=game.scenes.viewed;if(!scene||!isTOTM(scene)||!isGM())return;e.preventDefault();await toggleBoardActorsVisibility(scene,getData(scene));});});
 
