@@ -70,7 +70,7 @@ body.totm-active #hotbar{opacity:0!important;pointer-events:none!important}
 @keyframes totmSceneImageSwapOut{0%{opacity:1}100%{opacity:.06}}
 
 /* Draggable entity during positioning */
-.totm-drag-entity{position:absolute;z-index:100;cursor:grab;pointer-events:auto;overflow:visible}
+.totm-drag-entity{position:absolute;z-index:700;cursor:grab;pointer-events:auto;overflow:visible}
 .totm-drag-entity.active-drag{border-style:solid;box-shadow:0 0 18px rgba(201,168,76,.35)}
 .totm-drag-entity:active{cursor:grabbing}
 .totm-drag-visual{position:relative;display:inline-block;border:2px dashed var(--totm-gold);border-radius:4px;padding:4px;transform:scale(var(--totm-drag-scale,1));transform-origin:center center}
@@ -222,6 +222,7 @@ body.totm-active #hotbar{opacity:0!important;pointer-events:none!important}
 #totm-stage{position:absolute;inset:0;z-index:3;pointer-events:none;overflow:hidden}
 #totm-board-actor-layer{position:absolute;inset:0;z-index:500;pointer-events:none;overflow:visible}
 #totm-board-actor-layer .totm-stage-actor,#totm-board-actor-layer .totm-board-actor{position:absolute;z-index:501!important;pointer-events:auto!important;display:block!important;visibility:visible!important;opacity:1!important;transform-origin:center center}
+#totm-board-actor-layer .totm-stage-actor.is-being-positioned,#totm-board-actor-layer .totm-board-actor.is-being-positioned{opacity:0!important;pointer-events:none!important}
 #totm-board-actor-layer .totm-stage-actor img,#totm-board-actor-layer .totm-board-actor img{display:block;max-width:34vw;max-height:48vh;object-fit:contain}
 #totm-topbar{display:flex;align-items:center;justify-content:space-between;padding:8px 12px;z-index:6;position:relative;flex-shrink:0;flex-wrap:wrap;gap:4px}
 .totm-topbar-left,.totm-topbar-right{display:flex;align-items:center;gap:4px;flex-wrap:wrap}

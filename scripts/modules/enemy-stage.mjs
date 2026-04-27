@@ -600,8 +600,7 @@ export function bindEnemyStageEvents({el,scene,d,deps}){
       if(!found){warnMissingBoardActor();return;}
       if(e.shiftKey){await moveStageActorToEdge(scene,found.d,found.index,"front");return;}
       if(e.altKey){await moveStageActorToEdge(scene,found.d,found.index,"back");return;}
-      if(openStageActorLayoutPos)openStageActorLayoutPos(scene,found.d,found.entry,{combat:false});
-      else openStageActorCfg?.(scene,found.d,found.index);
+      openStageActorCfg?.(scene,found.d,found.index);
       return;
     }
     const enemy=e.target.closest(".totm-scene-enemy");

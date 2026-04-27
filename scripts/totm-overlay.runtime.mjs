@@ -1201,7 +1201,7 @@ function renderBoardActors(scene,d){
     const posY=clampStageValue(layout.posY,0,100,58);
     const scale=clampStageValue(layout.scale,MIN_STAGE_ENTITY_SCALE,MAX_STAGE_ENTITY_SCALE,100)/100;
     const name=entry.name||actor?.name||"Character";
-    return `<div class="totm-scene-img totm-stage-actor totm-board-actor" data-baidx="${i}" data-board-actor-id="${attr(entry.id||"")}" data-actor-id="${attr(entry.actorId||"")}" title="${attr("Right-click to move / double-click to open sheet")}" style="${attr(`left:${posX}%;top:${posY}%;transform:translate(-50%, -50%) scale(${scale});`)}"><img src="${attr(img)}" alt="${attr(name)}"/></div>`;
+    return `<div class="totm-scene-img totm-stage-actor totm-board-actor" data-baidx="${i}" data-board-actor-id="${attr(entry.id||"")}" data-actor-id="${attr(entry.actorId||"")}" title="${attr("Right-click to configure / double-click to open sheet")}" style="${attr(`left:${posX}%;top:${posY}%;transform:translate(-50%, -50%) scale(${scale});`)}"><img src="${attr(img)}" alt="${attr(name)}"/></div>`;
   }).join("");
 }
 
