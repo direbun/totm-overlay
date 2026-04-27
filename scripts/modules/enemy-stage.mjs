@@ -72,9 +72,19 @@ export function renderEnemyBar({d,scene,deps}){
 }
 
 export function bindEnemyStageEvents({el,scene,d,deps}){
-  const {isGM,setTargets,getTargets,targetRandomEnemy,targetNextEnemy,toggleEnemyTarget,getEncounterActor,pruneEnemyTokenDocs,saveData,emit,refreshUI,scheduleRefresh,makeEnemyEntry,ensureEnemyTokenDocs,openDragPos,getQuestPinImage,addStageActor,openStageActorCfg,removeStageActor,moveStageActor,moveStageActorToEdge,toggleSceneEntityImage,hasSceneEntityAltImage,confirmDestructive}=deps;
+  const {isGM,setTargets,getTargets,targetRandomEnemy,targetNextEnemy,toggleEnemyTarget,getEncounterActor,pruneEnemyTokenDocs,saveData,emit,refreshUI,scheduleRefresh,makeEnemyEntry,ensureEnemyTokenDocs,openDragPos,getQuestPinImage,addStageActor,openStageActorCfg,openStageActorLayoutPos,getBoardActorFromElement,removeStageActor,moveStageActor,moveStageActorToEdge,toggleSceneEntityImage,hasSceneEntityAltImage,confirmDestructive}=deps;
   const refresh=()=>scheduleRefresh?scheduleRefresh(scene):refreshUI(scene);
   const confirmDelete=(title,content)=>confirmDestructive?confirmDestructive({title,content,yes:"Delete"}):Promise.resolve(true);
+  const boardActorSelector="#totm-board-actor-layer .totm-stage-actor, #totm-board-actor-layer .totm-board-actor";
+  const resolveBoardActor=node=>{
+    const found=getBoardActorFromElement?.(scene,node);
+    if(found)return found;
+    const idx=Number(node?.dataset?.baidx);
+    const entry=Number.isInteger(idx)&&idx>=0?d.boardActors?.[idx]:null;
+    const actor=entry?game.actors.get(entry.actorId):null;
+    return entry&&actor?{d,entry,index:idx,actor}:null;
+  };
+  const warnMissingBoardActor=()=>ui.notifications.warn("Could not find board character placement data.");
   const wait = ms => new Promise(resolve=>setTimeout(resolve, ms));
   const animateSwapThen = async (node, action) => {
     if(node) node.classList.add("is-image-swap-pending");
@@ -547,17 +557,26 @@ export function bindEnemyStageEvents({el,scene,d,deps}){
       if(liveProp)await deleteScenePropById(liveProp.id);
       return;
     }
-    const actor=e.target.closest(".totm-stage-actor");
+    const actor=e.target.closest(boardActorSelector);
     if(actor&&(e.shiftKey||e.altKey)){
       e.preventDefault();
       e.stopPropagation();
-      const idx=+actor.dataset.baidx;
-      if(!Number.isInteger(idx)||idx<0)return;
-      if(e.shiftKey)await moveStageActor(scene,d,idx,1);
-      else await moveStageActor(scene,d,idx,-1);
+      const found=resolveBoardActor(actor);
+      if(!found){warnMissingBoardActor();return;}
+      if(e.shiftKey)await moveStageActor(scene,found.d,found.index,1);
+      else await moveStageActor(scene,found.d,found.index,-1);
+      return;
     }
   });
   stage?.addEventListener("dblclick",e=>{
+    const actorNode=e.target.closest(boardActorSelector);
+    if(actorNode){
+      e.preventDefault();
+      e.stopPropagation();
+      const found=resolveBoardActor(actorNode);
+      found?.actor?.sheet?.render?.(true);
+      return;
+    }
     const enemy=e.target.closest(".totm-scene-enemy");
     if(enemy){
       const en=d.enemies[+enemy.dataset.eidx],a=en?getEncounterActor(en,scene):null;
@@ -571,13 +590,20 @@ export function bindEnemyStageEvents({el,scene,d,deps}){
       actor?.sheet?.render?.(true);
       return;
     }
-    const actorNode=e.target.closest(".totm-stage-actor");
-    if(actorNode){
-      const entry=d.boardActors?.[+actorNode.dataset.baidx],actor=entry?game.actors.get(entry.actorId):null;
-      actor?.sheet?.render?.(true);
-    }
   });
   stage?.addEventListener("contextmenu",async e=>{
+    const boardActor=e.target.closest(boardActorSelector);
+    if(boardActor){
+      e.preventDefault();
+      e.stopPropagation();
+      const found=resolveBoardActor(boardActor);
+      if(!found){warnMissingBoardActor();return;}
+      if(e.shiftKey){await moveStageActorToEdge(scene,found.d,found.index,"front");return;}
+      if(e.altKey){await moveStageActorToEdge(scene,found.d,found.index,"back");return;}
+      if(openStageActorLayoutPos)openStageActorLayoutPos(scene,found.d,found.entry,{combat:false});
+      else openStageActorCfg?.(scene,found.d,found.index);
+      return;
+    }
     const enemy=e.target.closest(".totm-scene-enemy");
     if(enemy){
       e.preventDefault();

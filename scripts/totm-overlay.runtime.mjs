@@ -601,6 +601,40 @@ function openStageActorLayoutPos(scene,d,entry,{combat=false}={}){
   };
   openDragPos(proxy,scene,live,()=>commitBoardActorPlacement(scene,liveEntry.id,liveEntry.actorId,proxy,{combat}));
 }
+function getBoardActorFromElement(scene,el){
+  const d=getData(scene);
+  if(!Array.isArray(d.boardActors))return null;
+
+  const boardActorId=el?.dataset?.boardActorId;
+  const actorId=el?.dataset?.actorId;
+  const baidx=Number(el?.dataset?.baidx);
+
+  let entry=null;
+  let index=-1;
+
+  if(boardActorId){
+    index=d.boardActors.findIndex(e=>e?.id===boardActorId);
+    entry=d.boardActors[index];
+  }
+
+  if(!entry&&actorId){
+    index=d.boardActors.findIndex(e=>e?.actorId===actorId);
+    entry=d.boardActors[index];
+  }
+
+  if(!entry&&Number.isInteger(baidx)&&d.boardActors[baidx]){
+    index=baidx;
+    entry=d.boardActors[index];
+  }
+
+  const actor=game.actors.get(entry?.actorId||actorId);
+
+  if(!entry||!actor)return null;
+
+  normalizeBoardActorEntry(entry,actor);
+
+  return {d,entry,index,actor};
+}
 const makeEnemyInstanceId=()=>foundry.utils.randomID();
 const enemyTargetId=e=>e?.instanceId||e?.id;
 function makeEnemyEntry(actor,overrides={}){const entry=makeEntry(actor);return foundry.utils.mergeObject({instanceId:makeEnemyInstanceId(),id:actor.id,name:actor.name,image:actor.prototypeToken?.texture?.src||actor.img||"icons/svg/mystery-man.svg",posX:30+Math.random()*40,posY:55+Math.random()*20,scale:100,tokenId:null,resources:entry.resources,phaseEnabled:false,nextFormId:"",nextFormName:"",nextFormImage:"",nextPosX:null,nextPosY:null,nextScale:null,phaseUsed:false,transitionState:"",transitionAt:0,pendingPhasePrompt:false},overrides,{inplace:false,overwrite:true});}
@@ -1167,7 +1201,7 @@ function renderBoardActors(scene,d){
     const posY=clampStageValue(layout.posY,0,100,58);
     const scale=clampStageValue(layout.scale,MIN_STAGE_ENTITY_SCALE,MAX_STAGE_ENTITY_SCALE,100)/100;
     const name=entry.name||actor?.name||"Character";
-    return `<div class="totm-scene-img totm-stage-actor totm-board-actor" data-baidx="${i}" data-board-actor-id="${attr(entry.id||"")}" data-actor-id="${attr(entry.actorId||"")}" title="${attr(name)}" style="${attr(`left:${posX}%;top:${posY}%;transform:translate(-50%, -50%) scale(${scale});`)}"><img src="${attr(img)}" alt="${attr(name)}"/></div>`;
+    return `<div class="totm-scene-img totm-stage-actor totm-board-actor" data-baidx="${i}" data-board-actor-id="${attr(entry.id||"")}" data-actor-id="${attr(entry.actorId||"")}" title="${attr("Right-click to move / double-click to open sheet")}" style="${attr(`left:${posX}%;top:${posY}%;transform:translate(-50%, -50%) scale(${scale});`)}"><img src="${attr(img)}" alt="${attr(name)}"/></div>`;
   }).join("");
 }
 
@@ -1341,7 +1375,7 @@ function bindEvents(scene,d){
     mountSimpleTimekeepingIntoTotm();
     bindClockDockEvents(el,scene);
   bindPlayerPanelEventsModule({el,scene,d,deps:{isGM,saveData,emit,refreshUI,scheduleRefresh,updateTargetHighlights,targetRandomPlayer,pickActor,togglePlayerTarget,toggleActorPin,openActorPinCfg,openActorCfg,togCondDD,makeEntry,toggleActorAfkStatus,confirmDestructive}});
-  bindEnemyStageEventsModule({el,scene,d,deps:{isGM,setTargets,getTargets,targetRandomEnemy,targetNextEnemy,toggleEnemyTarget,getEncounterActor,pruneEnemyTokenDocs,saveData,emit,refreshUI,scheduleRefresh,updateTargetHighlights,makeEnemyEntry,ensureEnemyTokenDocs,openDragPos,getQuestPinImage,addStageActor,openStageActorCfg,removeStageActor,moveStageActor,moveStageActorToEdge,getSceneEntityImage,getSceneEntityLayout,toggleSceneEntityImage,SCENE_IMAGE_SWAP_MS,hasSceneEntityAltImage,confirmDestructive,esc,attr,cssUrl}});
+  bindEnemyStageEventsModule({el,scene,d,deps:{isGM,setTargets,getTargets,targetRandomEnemy,targetNextEnemy,toggleEnemyTarget,getEncounterActor,pruneEnemyTokenDocs,saveData,emit,refreshUI,scheduleRefresh,updateTargetHighlights,makeEnemyEntry,ensureEnemyTokenDocs,openDragPos,getQuestPinImage,addStageActor,openStageActorCfg,openStageActorLayoutPos,getBoardActorFromElement,removeStageActor,moveStageActor,moveStageActorToEdge,getSceneEntityImage,getSceneEntityLayout,toggleSceneEntityImage,SCENE_IMAGE_SWAP_MS,hasSceneEntityAltImage,confirmDestructive,esc,attr,cssUrl}});
   bindOnboardingEvents(el,scene,d);
 }
 
