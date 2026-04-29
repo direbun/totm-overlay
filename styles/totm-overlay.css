@@ -479,10 +479,12 @@ body.totm-picker-resizing{user-select:none!important;cursor:nwse-resize!importan
 @media(max-width:1100px){#totm-actor-panel{width:240px;min-width:240px}}
 
 .totm-bg-choose-dialog,.totm-bg-manager-dialog,.totm-bg-library-dialog{max-width:calc(100vw - 48px)!important;max-height:calc(100vh - 48px)!important}
-.totm-bg-choose-dialog .window-content,.totm-bg-manager-dialog .window-content,.totm-bg-library-dialog .window-content{display:flex;flex-direction:column;overflow:hidden;padding:10px 12px 12px}
+.totm-bg-choose-dialog .window-content,.totm-bg-manager-dialog .window-content,.totm-bg-library-dialog .window-content{display:flex;flex-direction:column;overflow:hidden;padding:10px 12px 12px;min-height:0}
+.totm-bg-library-dialog .dialog-content{display:flex;flex:1 1 auto;min-height:0;overflow:hidden}
 .totm-bg-choose-dialog .dialog-buttons,.totm-bg-manager-dialog .dialog-buttons,.totm-bg-library-dialog .dialog-buttons{display:none!important}
 .totm-bg-library-focus{box-shadow:0 0 0 2px rgba(201,168,76,.55),0 18px 48px rgba(0,0,0,.42)!important}
 .totm-bg-window{display:flex;flex-direction:column;gap:10px;width:100%;height:100%;min-height:0;color:#f2ecdf}
+.totm-bg-library-window{flex:1 1 auto;overflow:hidden}
 .totm-bg-header{display:flex;flex-direction:column;gap:10px;flex:0 0 auto;margin-bottom:4px}
 .totm-bg-toolbar{display:flex;align-items:center;gap:10px;flex:0 0 auto;flex-wrap:wrap;min-width:0}
 .totm-bg-search{display:flex;align-items:center;gap:8px;flex:1 1 280px;min-width:240px;height:34px;padding:0 10px;border:1px solid rgba(255,255,255,.12);border-radius:8px;background:rgba(15,18,28,.94);color:#d8cfbf}
@@ -497,6 +499,8 @@ body.totm-picker-resizing{user-select:none!important;cursor:nwse-resize!importan
 .totm-bg-actions{display:flex;align-items:center;justify-content:flex-end;gap:8px;flex:0 0 auto;flex-wrap:wrap;min-width:0}
 .totm-bg-action{width:auto!important;min-width:0!important;max-width:none!important;flex:0 0 auto!important;height:34px;display:inline-flex!important;align-items:center;justify-content:center;gap:6px;border:1px solid rgba(255,255,255,.12);border-radius:8px;background:rgba(18,22,34,.96);color:#e6dcc8;padding:0 11px!important;cursor:pointer;font-family:inherit;font-size:11px;font-weight:800;white-space:nowrap;line-height:1}
 .totm-bg-action:hover{border-color:var(--totm-gold-dim);color:var(--totm-gold)}
+.totm-bg-action:disabled{opacity:.45;cursor:not-allowed}
+.totm-bg-action:disabled:hover{border-color:rgba(255,255,255,.12);color:#e6dcc8}
 .totm-bg-action.primary{font-weight:900;border-color:rgba(201,168,76,.35)}
 .totm-bg-action.subtle{opacity:.86}
 .totm-bg-action.icon-only{width:36px!important;padding:0!important}
@@ -507,11 +511,17 @@ body.totm-picker-resizing{user-select:none!important;cursor:nwse-resize!importan
 .totm-bg-chip.is-active{background:var(--totm-gold-glow);border-color:var(--totm-gold-dim);color:var(--totm-gold)}
 .totm-bg-tool{height:34px;display:inline-flex;align-items:center;justify-content:center;gap:6px;border:1px solid rgba(255,255,255,.12);border-radius:8px;background:rgba(18,22,34,.96);color:#e6dcc8;padding:0 10px;cursor:pointer;font-family:inherit;font-size:11px;font-weight:800;white-space:nowrap}
 .totm-bg-tool:hover{border-color:var(--totm-gold-dim);color:var(--totm-gold)}
-.totm-bg-grid{display:grid;align-content:start;gap:14px;flex:1;min-height:0;overflow:auto;padding:2px 4px 4px 2px}
+.totm-bg-grid{display:grid;align-content:start;gap:14px;flex:1;min-height:0;overflow:auto;overscroll-behavior:contain;scrollbar-gutter:stable;padding:2px 8px 16px 2px}
 .totm-bg-choose-grid{grid-template-columns:repeat(auto-fill,minmax(180px,1fr))}
 .totm-bg-manager-grid{grid-template-columns:repeat(auto-fill,minmax(220px,1fr))}
 .totm-bg-library-grid{grid-template-columns:repeat(auto-fill,minmax(190px,1fr))}
-.totm-bg-card{min-height:0!important;border-radius:8px!important;padding:8px!important;gap:7px!important}
+.totm-bg-card{position:relative;min-height:0!important;border-radius:8px!important;padding:8px!important;gap:7px!important}
+.totm-bg-card.is-bulk-selected{border-color:rgba(201,168,76,.58)!important;box-shadow:0 0 0 1px rgba(201,168,76,.28),0 8px 18px rgba(0,0,0,.18)!important}
+.totm-bg-select{position:absolute;top:14px;left:14px;z-index:4;width:26px;height:26px;border-radius:7px;cursor:pointer}
+.totm-bg-select input{position:absolute;inset:0;width:100%;height:100%;opacity:0;margin:0;cursor:pointer}
+.totm-bg-select span{display:flex;align-items:center;justify-content:center;width:100%;height:100%;border:1px solid rgba(255,255,255,.2);border-radius:7px;background:rgba(10,12,20,.82);color:transparent;box-shadow:0 4px 12px rgba(0,0,0,.28)}
+.totm-bg-select:hover span{border-color:var(--totm-gold-dim)}
+.totm-bg-select input:checked+span,.totm-bg-select.is-selected span{background:var(--totm-gold);border-color:var(--totm-gold);color:#111}
 .totm-bg-choose-card{display:flex;flex-direction:column;text-align:left;cursor:pointer;color:#f2ecdf;font-family:inherit}
 .totm-bg-manager-card,.totm-bg-library-card{display:flex;flex-direction:column;cursor:pointer}
 .totm-bg-card.is-current{border-color:var(--totm-gold)!important;box-shadow:0 0 0 1px rgba(201,168,76,.38),0 8px 18px rgba(0,0,0,.18)!important}
@@ -543,6 +553,16 @@ body.totm-picker-resizing{user-select:none!important;cursor:nwse-resize!importan
 .totm-bg-editor-framing summary{cursor:pointer;margin-bottom:8px}
 .totm-bg-editor-framing label{display:flex;flex-direction:column;gap:4px;margin-top:7px}
 .totm-bg-editor-framing .totm-bg-editor-check{flex-direction:row;align-items:center;text-transform:none;letter-spacing:0;color:#d8cfbf}
+.totm-bg-tag-modal{display:flex;flex-direction:column;gap:10px;min-width:min(460px,82vw);color:#f2ecdf}
+.totm-bg-tag-count{font-size:12px;font-weight:900;color:#f8f2ea}
+.totm-bg-tag-modal .form-group{display:flex;flex-direction:column;gap:4px;margin:0}
+.totm-bg-tag-modal label{font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:1px;color:var(--totm-gold)}
+.totm-bg-tag-modal input[type="text"]{width:100%;border:1px solid rgba(255,255,255,.12);border-radius:6px;background:rgba(0,0,0,.24);color:#f7f1e8;padding:6px 8px;font:inherit;font-size:12px}
+.totm-bg-tag-chips{display:flex;flex-wrap:wrap;gap:6px;max-height:106px;overflow:auto;padding:1px 1px 3px}
+.totm-bg-tag-chip{width:auto!important;min-width:0!important;max-width:100%;height:26px;border:1px solid rgba(255,255,255,.12);border-radius:999px;background:rgba(18,22,34,.92);color:#d8cfbf;padding:0 9px!important;cursor:pointer;font-family:inherit;font-size:10px;font-weight:800;line-height:1}
+.totm-bg-tag-chip:hover{border-color:var(--totm-gold-dim);color:var(--totm-gold)}
+.totm-bg-tag-check{display:flex!important;flex-direction:row!important;align-items:center;gap:7px;text-transform:none!important;letter-spacing:0!important;color:#d8cfbf!important}
+.totm-bg-tag-check input{width:14px;height:14px;margin:0;accent-color:var(--totm-gold)}
 .totm-board-mgr{display:flex;flex-direction:column;gap:10px;min-width:min(640px,82vw);max-height:70vh;color:#f2ecdf}
 .totm-board-mgr-toolbar{display:flex;gap:8px;flex-wrap:wrap}
 .totm-board-mgr-toolbar button,.totm-board-mgr-actions button{border:1px solid rgba(255,255,255,.12);border-radius:8px;background:rgba(18,22,34,.96);color:#e6dcc8;padding:6px 9px;cursor:pointer;font-family:inherit;font-size:11px;font-weight:800}
