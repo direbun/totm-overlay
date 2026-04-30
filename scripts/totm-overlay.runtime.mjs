@@ -34,12 +34,20 @@ let REFRESH_SCENE_ID=null;
 let TOTM_GLOBAL_CLICK_BOUND=false;
 const TOTM_IMAGE_PRELOADS=new Set();
 const BOARD_RENDER_WARNED_SCENES=new Set();
-function preloadTotmImage(src){
+function preloadTotmImage(src,{force=false}={}){
   src=String(src||"").trim();
-  if(!src||TOTM_IMAGE_PRELOADS.has(src))return;
-  TOTM_IMAGE_PRELOADS.add(src);
+  if(!src||(!force&&TOTM_IMAGE_PRELOADS.has(src)))return;
+  if(!force)TOTM_IMAGE_PRELOADS.add(src);
   const img=new Image();
   img.src=src;
+}
+function cacheBustImagePath(src,token){
+  src=String(src||"").trim();
+  if(!src||!token||src.startsWith("data:")||src.startsWith("blob:"))return src;
+  const hashAt=src.indexOf("#");
+  const base=hashAt>=0?src.slice(0,hashAt):src;
+  const hash=hashAt>=0?src.slice(hashAt):"";
+  return `${base}${base.includes("?")?"&":"?"}totmThumbReload=${encodeURIComponent(token)}${hash}`;
 }
 function scheduleRefresh(scene){
   if(!scene)return;
@@ -1802,18 +1810,6 @@ function openMasterLibraryPicker(scene,d,initialSection="backgrounds",opts={}){
 
 // -- MANAGERS --
 const normalizeTagString=value=>Array.isArray(value)?value.join(", "):String(value||"").split(",").map(t=>t.trim()).filter(Boolean).join(", ");
-const tagListFromValue=value=>normalizeTagString(value).split(",").map(t=>t.trim()).filter(Boolean);
-function mergeTagStrings(existing,next,{replace=false}={}){
-  const tags=replace?tagListFromValue(next):[...tagListFromValue(existing),...tagListFromValue(next)];
-  const seen=new Set(),merged=[];
-  tags.forEach(tag=>{
-    const key=tag.toLowerCase();
-    if(seen.has(key))return;
-    seen.add(key);
-    merged.push(tag);
-  });
-  return merged.join(", ");
-}
 
 function normalizeBackgrounds(d){
   if(!Array.isArray(d.backgrounds))d.backgrounds=[];
@@ -2112,7 +2108,7 @@ function openBackgroundLibrary(scene,d,options={}){
   }
   normalizeBackgrounds(d).forEach(bg=>preloadTotmImage(bg.image));
   let term="",activeCat="all",selectedId=d.backgrounds.find(bg=>String(bg.image)===String(d.background))?.id||"";
-  const selectedIds=new Set();
+  let thumbReloadToken=0;
   let categoryDocClick=null;
   let categoryDoc=null;
   const content=`<div class="totm-bg-window totm-bg-library-window">
@@ -2128,12 +2124,10 @@ function openBackgroundLibrary(scene,d,options={}){
           <div class="totm-bg-filter-menu" data-bg-filter-menu hidden></div>
         </div>
         <div class="totm-bg-actions">
-          <button type="button" class="totm-bg-action" data-bg-toolbar="tag-selected" title="${attr(loc("TagSelected","Tag Selected"))}" disabled><i class="fas fa-tags"></i><span data-bg-tag-label>${esc(loc("TagSelected","Tag Selected"))} (0)</span></button>
-          <button type="button" class="totm-bg-action subtle" data-bg-toolbar="select-visible" title="${attr(loc("SelectVisible","Select Visible"))}"><i class="fas fa-check-double"></i><span>${esc(loc("SelectVisible","Select Visible"))}</span></button>
-          <button type="button" class="totm-bg-action icon-only subtle" data-bg-toolbar="clear-selected" title="${attr(loc("ClearSelection","Clear Selection"))}" aria-label="${attr(loc("ClearSelection","Clear Selection"))}" disabled><i class="fas fa-times"></i></button>
           <button type="button" class="totm-bg-action primary" data-bg-toolbar="add-image" title="${attr(loc("AddImage","Add Image"))}"><i class="fas fa-plus"></i><span>${esc(loc("AddImage","Add Image"))}</span></button>
           <button type="button" class="totm-bg-action" data-bg-toolbar="add-scene" title="${attr(loc("AddSceneBG","Add Scene BG"))}"><i class="fas fa-image"></i><span>${esc(loc("AddSceneBG","Add Scene BG"))}</span></button>
           <button type="button" class="totm-bg-action subtle" data-bg-toolbar="clean-names" title="${attr(loc("CleanNames","Clean generated names"))}"><i class="fas fa-magic"></i><span>${esc(loc("CleanNames","Clean Names"))}</span></button>
+          <button type="button" class="totm-bg-action icon-only subtle" data-bg-toolbar="reload-thumbs" title="${attr(loc("ReloadThumbnails","Reload Thumbnails"))}" aria-label="${attr(loc("ReloadThumbnails","Reload Thumbnails"))}"><i class="fas fa-sync-alt"></i></button>
           ${canUsePopoutModule()?`<button type="button" class="totm-bg-action icon-only" data-bg-toolbar="popout" title="${attr(loc("PopOut","Pop Out"))}" aria-label="${attr(loc("PopOut","Pop Out"))}"><i class="fas fa-up-right-from-square"></i></button>`:""}
         </div>
       </div>
@@ -2157,11 +2151,6 @@ function openBackgroundLibrary(scene,d,options={}){
       const filterBtn=root.querySelector("[data-bg-filter-toggle]");
       const filterLabel=root.querySelector("[data-bg-filter-label]");
       const filterMenu=root.querySelector("[data-bg-filter-menu]");
-      const tagSelectedBtn=root.querySelector("[data-bg-toolbar='tag-selected']");
-      const tagSelectedLabel=root.querySelector("[data-bg-tag-label]");
-      const selectVisibleBtn=root.querySelector("[data-bg-toolbar='select-visible']");
-      const clearSelectedBtn=root.querySelector("[data-bg-toolbar='clear-selected']");
-      let visibleIds=[];
       const currentPath=()=>String(d.background||"");
       const getItems=()=>normalizeBackgrounds(d).map((bg,index)=>({bg,index,displayName:displayBackgroundName(bg)}));
       const categoryName=bg=>String(bg?.category||"").trim()||"Uncategorized";
@@ -2180,24 +2169,7 @@ function openBackgroundLibrary(scene,d,options={}){
         if(!term)return true;
         return [bg.name,item.displayName,bg.category,bg.tags,bg.narration].some(value=>String(value||"").toLowerCase().includes(term));
       };
-      const syncSelectionUi=()=>{
-        const existingIds=new Set(normalizeBackgrounds(d).map(bg=>bg.id));
-        selectedIds.forEach(id=>{if(!existingIds.has(id))selectedIds.delete(id);});
-        const count=selectedIds.size;
-        if(tagSelectedLabel)tagSelectedLabel.textContent=`${loc("TagSelected","Tag Selected")} (${count})`;
-        if(tagSelectedBtn)tagSelectedBtn.disabled=!count;
-        if(clearSelectedBtn)clearSelectedBtn.disabled=!count;
-        if(selectVisibleBtn)selectVisibleBtn.disabled=!visibleIds.length;
-        grid.querySelectorAll("[data-bg-id]").forEach(card=>{
-          const active=selectedIds.has(card.dataset.bgId);
-          card.classList.toggle("is-bulk-selected",active);
-          const selector=card.querySelector(".totm-bg-select");
-          const input=selector?.querySelector("input");
-          selector?.classList.toggle("is-selected",active);
-          if(input)input.checked=active;
-        });
-      };
-      const thumbStyle=bg=>attr(`background-image:${cssUrl(bg.image)};background-position:${bg.bgPosX??50}% ${bg.bgPosY??50}%;background-size:${getBgSizeCss(bg.bgZoom??100,bg.bgStretch)};background-repeat:no-repeat`);
+      const thumbStyle=bg=>attr(`background-image:${cssUrl(cacheBustImagePath(bg.image,thumbReloadToken))};background-position:${bg.bgPosX??50}% ${bg.bgPosY??50}%;background-size:${getBgSizeCss(bg.bgZoom??100,bg.bgStretch)};background-repeat:no-repeat`);
       const render=()=>{
         const items=getItems();
         const categories=getCategories(items);
@@ -2211,15 +2183,10 @@ function openBackgroundLibrary(scene,d,options={}){
           }).join("");
         }
         const shown=items.filter(matches);
-        visibleIds=shown.map(({bg})=>bg.id);
         grid.innerHTML=shown.length?shown.map(({bg,displayName})=>{
           const current=currentPath()===String(bg.image||"");
           const frame=`X ${Math.round(bg.bgPosX??50)} / Y ${Math.round(bg.bgPosY??50)} / ${Math.round(bg.bgZoom??100)}%${bg.bgStretch?" / stretch":""}`;
           return `<article class="totm-bg-card totm-bg-library-card ${current?"is-current":""} ${selectedId===bg.id?"is-selected":""}" data-bg-id="${attr(bg.id)}" title="${attr(displayName)}">
-            <label class="totm-bg-select ${selectedIds.has(bg.id)?"is-selected":""}" data-bg-act="select-card" title="${attr(loc("SelectBackground","Select background"))}">
-              <input type="checkbox" ${selectedIds.has(bg.id)?"checked":""} aria-label="${attr(loc("SelectBackground","Select background"))}"/>
-              <span><i class="fas fa-check"></i></span>
-            </label>
             <button type="button" class="totm-bg-card-thumb" data-bg-act="use" style="${thumbStyle(bg)}">${current?`<span>${esc(loc("Current","Current"))}</span>`:""}</button>
             <div class="totm-bg-card-body">
               <div class="totm-bg-card-title" data-bg-title title="${attr(displayName)}"><span class="totm-bg-card-title-text">${esc(displayName)}</span><button type="button" class="totm-bg-title-rename" data-bg-act="rename" title="${attr(loc("Rename","Rename"))}"><i class="fas fa-pen"></i></button></div>
@@ -2239,7 +2206,6 @@ function openBackgroundLibrary(scene,d,options={}){
             </div>
           </article>`;
         }).join(""):`<div class="totm-bg-empty">${esc(items.length?loc("NoBackgroundSearchResults","No backgrounds match your search."):loc("NoBackgroundsYet","No backgrounds yet."))}</div>`;
-        syncSelectionUi();
       };
       const findCard=bg=>Array.from(grid.querySelectorAll("[data-bg-id]")).find(card=>card.dataset.bgId===bg?.id);
       const focusCard=bg=>setTimeout(()=>findCard(bg)?.scrollIntoView({block:"nearest"}),0);
@@ -2296,68 +2262,6 @@ function openBackgroundLibrary(scene,d,options={}){
         await saveData(scene,d);
         emit();
         if(refresh)scheduleRefresh(scene);
-      };
-      const selectedBackgrounds=()=>normalizeBackgrounds(d).filter(bg=>selectedIds.has(bg.id));
-      const visibleBackgrounds=()=>getItems().filter(matches).map(({bg})=>bg);
-      const openTagDialog=targets=>{
-        targets=targets.filter(Boolean);
-        if(!targets.length){
-          ui.notifications.warn(loc("NoBackgroundsSelected","Select one or more backgrounds first."));
-          return;
-        }
-        const allBgs=normalizeBackgrounds(d);
-        const categories=Array.from(new Set(allBgs.map(bg=>categoryName(bg)).filter(Boolean))).sort((a,b)=>a.localeCompare(b));
-        const tags=Array.from(new Set(allBgs.flatMap(bg=>tagListFromValue(bg.tags)))).sort((a,b)=>a.localeCompare(b));
-        const categoryChips=categories.map(cat=>`<button type="button" class="totm-bg-tag-chip" data-bg-category-chip="${attr(cat)}">${esc(cat)}</button>`).join("");
-        const tagChips=tags.map(tag=>`<button type="button" class="totm-bg-tag-chip" data-bg-tag-chip="${attr(tag)}">${esc(tag)}</button>`).join("");
-        const content=`<form class="totm-bg-tag-modal">
-          <div class="totm-bg-tag-count">${targets.length} ${esc(loc("SelectedBackgrounds","selected backgrounds"))}</div>
-          <div class="form-group"><label>${esc(loc("Category","Category"))}</label><input type="text" name="category" placeholder="${attr(loc("KeepCurrentCategories","Leave blank to keep current categories"))}"/></div>
-          ${categoryChips?`<div class="totm-bg-tag-chips">${categoryChips}</div>`:""}
-          <div class="form-group"><label>${esc(loc("Tags","Tags"))}</label><input type="text" name="tags" placeholder="${attr(loc("TagsPlaceholder","forest, ruins, night"))}"/></div>
-          ${tagChips?`<div class="totm-bg-tag-chips">${tagChips}</div>`:""}
-          <label class="totm-bg-tag-check"><input type="checkbox" name="replaceTags"/> ${esc(loc("ReplaceTags","Replace existing tags"))}</label>
-        </form>`;
-        new Dialog({
-          title:loc("ApplyTags","Apply Tags"),
-          content,
-          buttons:{
-            apply:{icon:'<i class="fas fa-tags"></i>',label:loc("ApplyTags","Apply Tags"),callback:async html=>{
-              const category=String(html.find("[name=category]").val()||"").trim();
-              const tagsValue=normalizeTagString(html.find("[name=tags]").val());
-              const replace=html.find("[name=replaceTags]").is(":checked");
-              if(!category&&!tagsValue&&!replace){
-                ui.notifications.warn(loc("NoTagChanges","Enter a category or tags to apply."));
-                return;
-              }
-              let touchesCurrent=false;
-              targets.forEach(bg=>{
-                if(category)bg.category=category;
-                if(tagsValue||replace)bg.tags=mergeTagStrings(bg.tags,tagsValue,{replace});
-                if(currentPath()===String(bg.image||""))touchesCurrent=true;
-              });
-              await saveLibrary({refresh:touchesCurrent});
-              ui.notifications.info(`${targets.length} ${loc("BackgroundsTagged","backgrounds updated.")}`);
-              render();
-            }},
-            cancel:{icon:'<i class="fas fa-times"></i>',label:"Cancel"}
-          },
-          default:"apply",
-          render:html=>{
-            const root=html[0];
-            const categoryInput=root.querySelector("[name=category]");
-            const tagsInput=root.querySelector("[name=tags]");
-            root.querySelectorAll("[data-bg-category-chip]").forEach(btn=>btn.addEventListener("click",event=>{
-              event.preventDefault();
-              if(categoryInput)categoryInput.value=btn.dataset.bgCategoryChip||"";
-            }));
-            root.querySelectorAll("[data-bg-tag-chip]").forEach(btn=>btn.addEventListener("click",event=>{
-              event.preventDefault();
-              if(tagsInput)tagsInput.value=mergeTagStrings(tagsInput.value,btn.dataset.bgTagChip||"");
-            }));
-            setTimeout(()=>categoryInput?.focus(),0);
-          }
-        }).render(true);
       };
       const applyBg=async bg=>{
         if(!bg)return;
@@ -2422,6 +2326,12 @@ function openBackgroundLibrary(scene,d,options={}){
         ui.notifications.info(`${changed} ${loc("BackgroundNamesCleaned","background names cleaned.")}`);
         render();
       };
+      const reloadThumbnails=()=>{
+        thumbReloadToken=Date.now();
+        normalizeBackgrounds(d).forEach(bg=>preloadTotmImage(cacheBustImagePath(bg.image,thumbReloadToken),{force:true}));
+        render();
+        ui.notifications.info(loc("ThumbnailsReloaded","Background thumbnails reloaded."));
+      };
       const addBgFromPath=async(path,source={},opts={})=>{
         path=String(path||"").trim();
         if(!path)return null;
@@ -2457,20 +2367,6 @@ function openBackgroundLibrary(scene,d,options={}){
       };
       categoryDoc=root.ownerDocument||document;
       categoryDoc.addEventListener("click",categoryDocClick);
-      root.querySelector("[data-bg-toolbar='tag-selected']")?.addEventListener("click",event=>{
-        event.stopPropagation();
-        openTagDialog(selectedBackgrounds());
-      });
-      root.querySelector("[data-bg-toolbar='select-visible']")?.addEventListener("click",event=>{
-        event.stopPropagation();
-        visibleBackgrounds().forEach(bg=>selectedIds.add(bg.id));
-        syncSelectionUi();
-      });
-      root.querySelector("[data-bg-toolbar='clear-selected']")?.addEventListener("click",event=>{
-        event.stopPropagation();
-        selectedIds.clear();
-        syncSelectionUi();
-      });
       root.querySelector("[data-bg-toolbar='add-image']")?.addEventListener("click",event=>{event.stopPropagation();new FilePicker({type:"image",callback:path=>{void addBgFromPath(path,{}, {rename:true});}}).browse();});
       root.querySelector("[data-bg-toolbar='add-scene']")?.addEventListener("click",async()=>{
         const path=String(scene.background?.src||"").trim();
@@ -2481,22 +2377,11 @@ function openBackgroundLibrary(scene,d,options={}){
         await addBgFromPath(path,{name:scene.name||cleanBackgroundNameFromPath(path),category:"Scene",...bgCfg(live),narration:live.narration||""});
       });
       root.querySelector("[data-bg-toolbar='clean-names']")?.addEventListener("click",event=>{event.stopPropagation();void cleanGeneratedNames();});
+      root.querySelector("[data-bg-toolbar='reload-thumbs']")?.addEventListener("click",event=>{event.stopPropagation();reloadThumbnails();});
       root.querySelector("[data-bg-toolbar='popout']")?.addEventListener("click",event=>{event.stopPropagation();popoutCompatibleApp(dlg);});
       search.addEventListener("click",event=>event.stopPropagation());
       search.addEventListener("input",()=>{term=String(search.value||"").trim().toLowerCase();render();});
       grid.addEventListener("change",event=>{
-        const selectInput=event.target.closest(".totm-bg-select input");
-        if(selectInput){
-          event.stopPropagation();
-          const card=selectInput.closest("[data-bg-id]");
-          const bg=bgById(card?.dataset.bgId);
-          if(bg){
-            if(selectInput.checked)selectedIds.add(bg.id);
-            else selectedIds.delete(bg.id);
-            syncSelectionUi();
-          }
-          return;
-        }
         const input=event.target.closest(".totm-bg-fill-toggle input");
         if(!input)return;
         event.stopPropagation();
@@ -2518,9 +2403,8 @@ function openBackgroundLibrary(scene,d,options={}){
         const act=control?.dataset.bgAct||"use";
         if(control){
           event.stopPropagation();
-          if(act!=="toggle-fill"&&act!=="select-card")event.preventDefault();
+          if(act!=="toggle-fill")event.preventDefault();
         }
-        if(act==="select-card")return;
         selectedId=bg?.id||"";
         if(act==="use")await applyBg(bg);
         else if(act==="toggle-fill")return;
