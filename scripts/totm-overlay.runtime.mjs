@@ -34,20 +34,12 @@ let REFRESH_SCENE_ID=null;
 let TOTM_GLOBAL_CLICK_BOUND=false;
 const TOTM_IMAGE_PRELOADS=new Set();
 const BOARD_RENDER_WARNED_SCENES=new Set();
-function preloadTotmImage(src,{force=false}={}){
+function preloadTotmImage(src){
   src=String(src||"").trim();
-  if(!src||(!force&&TOTM_IMAGE_PRELOADS.has(src)))return;
-  if(!force)TOTM_IMAGE_PRELOADS.add(src);
+  if(!src||TOTM_IMAGE_PRELOADS.has(src))return;
+  TOTM_IMAGE_PRELOADS.add(src);
   const img=new Image();
   img.src=src;
-}
-function cacheBustImagePath(src,token){
-  src=String(src||"").trim();
-  if(!src||!token||src.startsWith("data:")||src.startsWith("blob:"))return src;
-  const hashAt=src.indexOf("#");
-  const base=hashAt>=0?src.slice(0,hashAt):src;
-  const hash=hashAt>=0?src.slice(hashAt):"";
-  return `${base}${base.includes("?")?"&":"?"}totmThumbReload=${encodeURIComponent(token)}${hash}`;
 }
 function scheduleRefresh(scene){
   if(!scene)return;
@@ -2108,7 +2100,6 @@ function openBackgroundLibrary(scene,d,options={}){
   }
   normalizeBackgrounds(d).forEach(bg=>preloadTotmImage(bg.image));
   let term="",activeCat="all",selectedId=d.backgrounds.find(bg=>String(bg.image)===String(d.background))?.id||"";
-  let thumbReloadToken=0;
   let categoryDocClick=null;
   let categoryDoc=null;
   const content=`<div class="totm-bg-window totm-bg-library-window">
@@ -2127,7 +2118,6 @@ function openBackgroundLibrary(scene,d,options={}){
           <button type="button" class="totm-bg-action primary" data-bg-toolbar="add-image" title="${attr(loc("AddImage","Add Image"))}"><i class="fas fa-plus"></i><span>${esc(loc("AddImage","Add Image"))}</span></button>
           <button type="button" class="totm-bg-action" data-bg-toolbar="add-scene" title="${attr(loc("AddSceneBG","Add Scene BG"))}"><i class="fas fa-image"></i><span>${esc(loc("AddSceneBG","Add Scene BG"))}</span></button>
           <button type="button" class="totm-bg-action subtle" data-bg-toolbar="clean-names" title="${attr(loc("CleanNames","Clean generated names"))}"><i class="fas fa-magic"></i><span>${esc(loc("CleanNames","Clean Names"))}</span></button>
-          <button type="button" class="totm-bg-action icon-only subtle" data-bg-toolbar="reload-thumbs" title="${attr(loc("ReloadThumbnails","Reload Thumbnails"))}" aria-label="${attr(loc("ReloadThumbnails","Reload Thumbnails"))}"><i class="fas fa-sync-alt"></i></button>
           ${canUsePopoutModule()?`<button type="button" class="totm-bg-action icon-only" data-bg-toolbar="popout" title="${attr(loc("PopOut","Pop Out"))}" aria-label="${attr(loc("PopOut","Pop Out"))}"><i class="fas fa-up-right-from-square"></i></button>`:""}
         </div>
       </div>
@@ -2144,6 +2134,43 @@ function openBackgroundLibrary(scene,d,options={}){
       if(app){
         app.classList.add("totm-bg-library-dialog");
         applyDialogSize(app,"backgroundLibrarySize",{width:1100,height:760,minWidth:720,minHeight:520});
+        if(!app.querySelector(".totm-picker-resize")){
+          const handle=document.createElement("div");
+          handle.className="totm-picker-resize";
+          handle.title="Resize";
+          app.appendChild(handle);
+          const doc=app.ownerDocument||document;
+          const view=doc.defaultView||window;
+          const body=doc.body||document.body;
+          let resizing=false,startX=0,startY=0,startW=0,startH=0;
+          const onMove=ev=>{
+            if(!resizing)return;
+            const width=Math.max(720,Math.min(view.innerWidth-48,startW+(ev.clientX-startX)));
+            const height=Math.max(520,Math.min(view.innerHeight-48,startH+(ev.clientY-startY)));
+            app.style.width=`${width}px`;
+            app.style.height=`${height}px`;
+          };
+          const onUp=()=>{
+            resizing=false;
+            body.classList.remove("totm-picker-resizing");
+            view.removeEventListener("pointermove",onMove);
+            view.removeEventListener("pointerup",onUp);
+            void saveDialogSize("backgroundLibrarySize",app);
+          };
+          handle.addEventListener("pointerdown",ev=>{
+            resizing=true;
+            startX=ev.clientX;
+            startY=ev.clientY;
+            startW=app.offsetWidth;
+            startH=app.offsetHeight;
+            ev.preventDefault();
+            ev.stopPropagation();
+            body.classList.add("totm-picker-resizing");
+            try{handle.setPointerCapture?.(ev.pointerId);}catch{}
+            view.addEventListener("pointermove",onMove);
+            view.addEventListener("pointerup",onUp,{once:true});
+          });
+        }
       }
       const grid=root.querySelector("[data-bg-grid]");
       const search=root.querySelector("[name=bgSearch]");
@@ -2169,7 +2196,7 @@ function openBackgroundLibrary(scene,d,options={}){
         if(!term)return true;
         return [bg.name,item.displayName,bg.category,bg.tags,bg.narration].some(value=>String(value||"").toLowerCase().includes(term));
       };
-      const thumbStyle=bg=>attr(`background-image:${cssUrl(cacheBustImagePath(bg.image,thumbReloadToken))};background-position:${bg.bgPosX??50}% ${bg.bgPosY??50}%;background-size:${getBgSizeCss(bg.bgZoom??100,bg.bgStretch)};background-repeat:no-repeat`);
+      const thumbStyle=bg=>attr(`background-image:${cssUrl(bg.image)};background-position:center;background-size:cover;background-repeat:no-repeat`);
       const render=()=>{
         const items=getItems();
         const categories=getCategories(items);
@@ -2326,12 +2353,6 @@ function openBackgroundLibrary(scene,d,options={}){
         ui.notifications.info(`${changed} ${loc("BackgroundNamesCleaned","background names cleaned.")}`);
         render();
       };
-      const reloadThumbnails=()=>{
-        thumbReloadToken=Date.now();
-        normalizeBackgrounds(d).forEach(bg=>preloadTotmImage(cacheBustImagePath(bg.image,thumbReloadToken),{force:true}));
-        render();
-        ui.notifications.info(loc("ThumbnailsReloaded","Background thumbnails reloaded."));
-      };
       const addBgFromPath=async(path,source={},opts={})=>{
         path=String(path||"").trim();
         if(!path)return null;
@@ -2377,7 +2398,6 @@ function openBackgroundLibrary(scene,d,options={}){
         await addBgFromPath(path,{name:scene.name||cleanBackgroundNameFromPath(path),category:"Scene",...bgCfg(live),narration:live.narration||""});
       });
       root.querySelector("[data-bg-toolbar='clean-names']")?.addEventListener("click",event=>{event.stopPropagation();void cleanGeneratedNames();});
-      root.querySelector("[data-bg-toolbar='reload-thumbs']")?.addEventListener("click",event=>{event.stopPropagation();reloadThumbnails();});
       root.querySelector("[data-bg-toolbar='popout']")?.addEventListener("click",event=>{event.stopPropagation();popoutCompatibleApp(dlg);});
       search.addEventListener("click",event=>event.stopPropagation());
       search.addEventListener("input",()=>{term=String(search.value||"").trim().toLowerCase();render();});

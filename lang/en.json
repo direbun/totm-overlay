@@ -39,8 +39,6 @@
     "AddImage": "Add Image",
     "AddSceneBG": "Add Scene BG",
     "CleanNames": "Clean Names",
-    "ReloadThumbnails": "Reload Thumbnails",
-    "ThumbnailsReloaded": "Background thumbnails reloaded.",
     "NoBackgroundNamesCleaned": "No generated background names needed cleaning.",
     "BackgroundNamesCleaned": "background names cleaned.",
     "UseNow": "Use Now",
