@@ -16,7 +16,7 @@ const normalizeSceneData=data=>Object.assign(defData(),cloneData(data));
 const getData=s=>{
   if(!s)return defData();
   const cached=s.id?SCENE_DATA_CACHE.get(s.id):null;
-  return normalizeSceneData(cached??(getF(s,FLAG_DATA)||{}));
+  return normalizeSceneData(getF(s,FLAG_DATA)??cached??{});
 };
 const saveData=async(s,d)=>{
   const normalized=normalizeSceneData(d);

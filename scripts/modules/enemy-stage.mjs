@@ -24,7 +24,8 @@ export function buildStageSceneImages({d,scene,deps}){
   const activeBackgroundKey=String(d.background||"");
   const backgroundProps=Array.isArray(d.propsByBackground?.[activeBackgroundKey])?d.propsByBackground[activeBackgroundKey]:(Array.isArray(d.props)?d.props.filter(p=>String(p?.backgroundKey||"")===activeBackgroundKey):[]);
   const backgroundQuestPins=Array.isArray(d.questPins)?d.questPins.filter(p=>String(p?.backgroundKey||"")===activeBackgroundKey):(Array.isArray(d.questPinsByBackground?.[activeBackgroundKey])?d.questPinsByBackground[activeBackgroundKey]:[]);
-  (d.npcs||[]).filter(n=>n.visible).forEach((n,i)=>{
+  (d.npcs||[]).forEach((n,i)=>{
+    if(!n.visible)return;
     const layout=getSceneEntityLayout(n);
     const fadeClass=n.imageSwapAt&&Date.now()-(n.imageSwapAt||0)<SCENE_IMAGE_SWAP_MS+100?"is-image-swapping":"";
     sceneImgs.push(`<div class="totm-scene-img totm-scene-npc ${fadeClass}" data-nidx="${i}" style="left:${layout.posX}%;top:${layout.posY}%;transform:translate(-50%,-50%) scale(${layout.scale/100});"><img src="${attr(getSceneEntityImage(n))}" alt="${attr(n.name)}"/></div>`);
