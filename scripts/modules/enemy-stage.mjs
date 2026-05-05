@@ -69,11 +69,14 @@ export function renderEnemyBar({d,scene,deps}){
   const enemies=d.enemies||[],targets=scene?getTargets(scene):[];
   if(!d.combatActive||!enemies.length)return "";
   const now=Date.now();
-  return `<div id="totm-enemy-wrap"><div id="totm-enemy-tools"><button class="totm-tb-btn" data-target-act="random"><i class="fas fa-dice"></i> Random Target</button><button class="totm-tb-btn" data-target-act="next"><i class="fas fa-crosshairs"></i> T Target</button><button class="totm-tb-btn" data-target-act="clear"><i class="fas fa-ban"></i> Clear</button></div><div id="totm-enemy-bar">${enemies.map((e,i)=>{normalizeEnemyEntry(e);const a=getEncounterActor(e,scene);const res=getRes(e,scene,{enemy:true,auto:true}).filter(r=>r.label==="HP"||r.label==="MP");const img=a?.prototypeToken?.texture?.src||a?.img||e.img||"icons/svg/mystery-man.svg";const dead=(res.find(r=>r.label==="HP")?.value??1)<=0,targeted=targets.includes(enemyTargetId(e)),targeters=getEnemyTargetUsers(e,scene);const fadeClass=e.transitionState&&now-(e.transitionAt||0)<ENEMY_FADE_MS+150?`is-${e.transitionState}`:"";return `<div class="totm-enemy-card ${dead?"enemy-dead":""} ${targeted?"enemy-targeted":""} ${fadeClass}" data-eidx="${i}" data-target-id="${attr(enemyTargetId(e))}"><div class="totm-card-bg" style="${attr(`background-image:${cssUrl(img)}`)}"></div><div class="totm-card-overlay"></div><div class="totm-enemy-targeters">${targeters.map(t=>`<span class="totm-enemy-targeter" title="${attr(t.name)}" style="${attr(`--targeter-color:${t.color};background-image:${cssUrl(t.img)}`)}"></span>`).join("")}</div><div class="totm-enemy-actions"><button data-eact="target" class="${targeted?"active-target":""}" title="Target"><i class="fas fa-crosshairs"></i></button>${isGM()?`<button data-eact="remove" title="Remove"><i class="fas fa-times"></i></button>`:""}</div><div class="totm-card-content"><div class="totm-actor-name">${esc(e.name)}</div>${deps.renderBars(res,{kind:"enemy"})}</div></div>`;}).join("")}</div></div>`;
+  const tools=isGM()
+    ? `<button class="totm-tb-btn" data-target-act="random-player"><i class="fas fa-dice"></i> Random Player</button><button class="totm-tb-btn" data-target-act="choose-player"><i class="fas fa-user-check"></i> Choose Player</button><button class="totm-tb-btn" data-target-act="choose-enemy"><i class="fas fa-crosshairs"></i> Choose Enemy</button><button class="totm-tb-btn" data-target-act="random-enemy"><i class="fas fa-dice-d20"></i> Random Enemy</button><button class="totm-tb-btn" data-target-act="clear-all"><i class="fas fa-ban"></i> Clear</button>`
+    : `<button class="totm-tb-btn" data-target-act="random"><i class="fas fa-dice"></i> Random Target</button><button class="totm-tb-btn" data-target-act="next"><i class="fas fa-crosshairs"></i> T Target</button><button class="totm-tb-btn" data-target-act="clear"><i class="fas fa-ban"></i> Clear</button>`;
+  return `<div id="totm-enemy-wrap"><div id="totm-enemy-tools">${tools}</div><div id="totm-enemy-bar">${enemies.map((e,i)=>{normalizeEnemyEntry(e);const a=getEncounterActor(e,scene);const res=getRes(e,scene,{enemy:true,auto:true}).filter(r=>r.label==="HP"||r.label==="MP");const img=a?.prototypeToken?.texture?.src||a?.img||e.img||"icons/svg/mystery-man.svg";const dead=(res.find(r=>r.label==="HP")?.value??1)<=0,targeted=targets.includes(enemyTargetId(e)),targeters=getEnemyTargetUsers(e,scene);const fadeClass=e.transitionState&&now-(e.transitionAt||0)<ENEMY_FADE_MS+150?`is-${e.transitionState}`:"";return `<div class="totm-enemy-card ${dead?"enemy-dead":""} ${targeted?"enemy-targeted":""} ${fadeClass}" data-eidx="${i}" data-target-id="${attr(enemyTargetId(e))}"><div class="totm-card-bg" style="${attr(`background-image:${cssUrl(img)}`)}"></div><div class="totm-card-overlay"></div><div class="totm-enemy-targeters">${targeters.map(t=>`<span class="totm-enemy-targeter" title="${attr(t.name)}" style="${attr(`--targeter-color:${t.color};background-image:${cssUrl(t.img)}`)}"></span>`).join("")}</div><div class="totm-enemy-actions"><button data-eact="target" class="${targeted?"active-target":""}" title="Target"><i class="fas fa-crosshairs"></i></button>${isGM()?`<button data-eact="remove" title="Remove"><i class="fas fa-times"></i></button>`:""}</div><div class="totm-card-content"><div class="totm-actor-name">${esc(e.name)}</div>${deps.renderBars(res,{kind:"enemy"})}</div></div>`;}).join("")}</div></div>`;
 }
 
 export function bindEnemyStageEvents({el,scene,d,deps}){
-  const {isGM,setTargets,getTargets,targetRandomEnemy,targetNextEnemy,toggleEnemyTarget,getEncounterActor,pruneEnemyTokenDocs,saveData,emit,refreshUI,scheduleRefresh,makeEnemyEntry,ensureEnemyTokenDocs,openDragPos,getQuestPinImage,addStageActor,openStageActorCfg,openStageActorLayoutPos,getBoardActorFromElement,removeStageActor,moveStageActor,moveStageActorToEdge,toggleSceneEntityImage,hasSceneEntityAltImage,confirmDestructive}=deps;
+  const {isGM,setTargets,getTargets,targetRandomEnemy,targetNextEnemy,targetRandomAttackPlayer,targetRandomAttackEnemy,openAttackTargetChooser,clearAttackTargets,toggleEnemyTarget,getEncounterActor,pruneEnemyTokenDocs,saveData,getData,emit,refreshUI,scheduleRefresh,makeEnemyEntry,ensureEnemyTokenDocs,openDragPos,getQuestPinImage,addStageActor,openStageActorCfg,openStageActorLayoutPos,getBoardActorFromElement,removeStageActor,moveStageActor,moveStageActorToEdge,toggleSceneEntityImage,hasSceneEntityAltImage,confirmDestructive}=deps;
   const refresh=()=>scheduleRefresh?scheduleRefresh(scene):refreshUI(scene);
   const confirmDelete=(title,content)=>confirmDestructive?confirmDestructive({title,content,yes:"Delete"}):Promise.resolve(true);
   const boardActorSelector="#totm-board-actor-layer .totm-stage-actor, #totm-board-actor-layer .totm-board-actor";
@@ -99,6 +102,11 @@ export function bindEnemyStageEvents({el,scene,d,deps}){
     if(act==="random")await targetRandomEnemy(scene,d);
     else if(act==="next")await targetNextEnemy(scene,d);
     else if(act==="clear")await setTargets(scene,[],game.user,d);
+    else if(act==="random-player")await targetRandomAttackPlayer?.(scene,d);
+    else if(act==="choose-player")openAttackTargetChooser?.(scene,d,{scope:"players"});
+    else if(act==="choose-enemy")openAttackTargetChooser?.(scene,d,{scope:"enemies"});
+    else if(act==="random-enemy")await targetRandomAttackEnemy?.(scene,d);
+    else if(act==="clear-all")await clearAttackTargets?.(scene,d);
   });
 
   if(!isGM())return;
@@ -275,9 +283,22 @@ export function bindEnemyStageEvents({el,scene,d,deps}){
     return true;
   };
 
+  const commitSceneProp = (targetData, prop) => {
+    if(!targetData||!prop)return [];
+    const key=String(prop.backgroundKey||targetData.background||"");
+    const saved=foundry.utils.deepClone({...prop,backgroundKey:key});
+    if(!targetData.propsByBackground || typeof targetData.propsByBackground!=="object" || Array.isArray(targetData.propsByBackground)) targetData.propsByBackground={};
+    const bucket=Array.isArray(targetData.propsByBackground[key])?targetData.propsByBackground[key]:[];
+    const idx=bucket.findIndex(item=>item?.id===saved.id);
+    if(idx>=0)bucket[idx]=saved;
+    else bucket.push(saved);
+    targetData.propsByBackground[key]=bucket;
+    if(String(targetData.background||"")===key)targetData.props=bucket.map(item=>foundry.utils.deepClone(item));
+    return bucket;
+  };
+
   const addSceneProp = async (image, opts={}) => {
     if(!image)return;
-    const propBucket=getPropBucket();
     const activeBackgroundKey=String(d.background||"");
     const name = String(opts.name || image.split("/").pop()?.replace(/\.\w+$/,"") || "Prop").trim() || "Prop";
     const prop = {
@@ -290,21 +311,21 @@ export function bindEnemyStageEvents({el,scene,d,deps}){
       posY: Number.isFinite(opts.posY) ? opts.posY : 50,
       scale: Number.isFinite(opts.scale) ? opts.scale : 100
     };
-    propBucket.push(prop);
-    syncCurrentPropView(propBucket);
-    await saveData(scene,d);
-    emit();
-    refreshUI(scene);
-    setTimeout(() => {
-      openDragPos?.(prop, scene, d, async () => {
-        syncCurrentPropView(propBucket);
-        await saveData(scene, d);
-        emit();
-        refreshUI(scene);
-      }, async () => {
-        await deleteScenePropById(prop.id);
-      });
-    }, 30);
+    const commit=async()=>{
+      const live=getData?.(scene)||d;
+      commitSceneProp(live,prop);
+      await saveData(scene,live);
+      emit();
+      refreshUI(scene);
+    };
+    if(!openDragPos){
+      await commit();
+      return;
+    }
+    ui.notifications.info(`Position ${name}. Players will see it after you click Done.`);
+    openDragPos(prop, scene, d, commit, async () => {
+      ui.notifications.info(`Cancelled ${name} placement.`);
+    });
   };
 
   const isImagePath = value => {
@@ -389,28 +410,24 @@ export function bindEnemyStageEvents({el,scene,d,deps}){
   const addEncounterEnemy = async (actor, opts={}) => {
     if(!actor || actor.type === "character") return;
     const enemy = makeEnemyEntry(actor, opts);
-    d.enemies.push(enemy);
-    await ensureEnemyTokenDocs(scene, d);
-    await saveData(scene, d);
-    emit();
-    refreshUI(scene);
-    ui.notifications.info(`Added ${actor.name} to the encounter.`);
-    setTimeout(() => {
-      openDragPos?.(enemy, scene, d, async () => {
-        await ensureEnemyTokenDocs(scene, d);
-        await saveData(scene, d);
-        emit();
-        refreshUI(scene);
-      }, async () => {
-        const enemyIdx=(d.enemies||[]).findIndex(en=>en?.instanceId===enemy.instanceId);
-        if(enemyIdx<0)return;
-        d.enemies.splice(enemyIdx,1);
-        await pruneEnemyTokenDocs(scene,d);
-        await saveData(scene,d);
-        emit();
-        refreshUI(scene);
-      });
-    }, 30);
+    const commit=async()=>{
+      const live=getData?.(scene)||d;
+      if(!Array.isArray(live.enemies))live.enemies=[];
+      live.enemies.push(foundry.utils.deepClone(enemy));
+      await ensureEnemyTokenDocs(scene, live);
+      await saveData(scene, live);
+      emit();
+      refreshUI(scene);
+      ui.notifications.info(`Added ${actor.name} to the encounter.`);
+    };
+    if(!openDragPos){
+      await commit();
+      return;
+    }
+    ui.notifications.info(`Position ${actor.name}. Players will see it after you click Done.`);
+    openDragPos(enemy, scene, d, commit, async () => {
+      ui.notifications.info(`Cancelled ${actor.name} placement.`);
+    });
   };
 
   const bindEnemyDropZone = node => {

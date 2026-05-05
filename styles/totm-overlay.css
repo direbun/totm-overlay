@@ -89,6 +89,9 @@ body.totm-active #hotbar{opacity:0!important;pointer-events:none!important}
 .totm-drag-delete{background:rgba(160,57,46,.98)}
 .totm-drag-delete:hover{background:#c44838}
 .totm-drag-visual img{object-fit:contain;pointer-events:none;opacity:.85;display:block}
+.totm-target-chooser{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:8px;min-width:320px;max-width:560px}
+.totm-target-choice{min-height:34px;border:1px solid rgba(255,255,255,.14);border-radius:6px;background:rgba(18,22,34,.96);color:#e8e4dc;cursor:pointer;font-family:inherit;font-size:12px;font-weight:800;text-align:left;padding:8px 10px}
+.totm-target-choice:hover{border-color:var(--totm-gold-dim);background:var(--totm-gold-glow);color:var(--totm-gold)}
 .totm-drag-entity.is-npc .totm-drag-visual img,.totm-drag-entity.is-board-actor .totm-drag-visual img,.totm-drag-entity.is-enemy .totm-drag-visual img{max-height:48vh;max-width:34vw}
 .totm-drag-entity.is-quest .totm-drag-visual img{width:48px;height:48px;max-width:none;max-height:none}
 .totm-drag-entity.is-prop .totm-drag-visual img{max-height:70vh;max-width:46vw}
@@ -183,6 +186,7 @@ body.totm-active #hotbar{opacity:0!important;pointer-events:none!important}
 .totm-actor-status-bar button{background:rgba(0,0,0,.4);border:1px solid rgba(255,255,255,.08);color:rgba(255,255,255,.5);cursor:pointer;padding:1px 5px;font-size:8px;border-radius:2px;font-family:inherit}
 .totm-actor-status-bar button:hover{color:#fff;background:rgba(0,0,0,.6)}
 .totm-actor-status-bar button.active-status{color:var(--totm-gold);border-color:var(--totm-gold-dim)}
+.totm-actor-status-bar button.active-target{color:var(--totm-target-color);border-color:color-mix(in srgb,var(--totm-target-color) 65%, transparent)}
 .totm-player-shell{display:grid;grid-template-columns:118px minmax(0,1fr);gap:12px;align-items:start;padding:10px 10px 10px;min-height:0;flex:1}
 .totm-player-portrait-col{display:grid;grid-template-rows:auto auto;gap:6px;min-width:0;align-content:start}
 .totm-player-portrait-frame{position:relative;width:100%;aspect-ratio:1 / 1;min-height:0;border-radius:8px;overflow:hidden;border:2px solid rgba(255,255,255,.08);background:linear-gradient(180deg,rgba(16,20,30,.92),rgba(8,10,18,.96));box-shadow:inset 0 0 0 1px rgba(255,255,255,.04)}
