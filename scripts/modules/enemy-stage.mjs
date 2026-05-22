@@ -79,14 +79,16 @@ export function bindEnemyStageEvents({el,scene,d,deps}){
   const {isGM,setTargets,getTargets,targetRandomEnemy,targetNextEnemy,targetRandomAttackPlayer,targetRandomAttackEnemy,openAttackTargetChooser,clearAttackTargets,toggleEnemyTarget,getEncounterActor,pruneEnemyTokenDocs,saveData,getData,emit,refreshUI,scheduleRefresh,makeEnemyEntry,ensureEnemyTokenDocs,openDragPos,getQuestPinImage,addStageActor,openStageActorCfg,openStageActorLayoutPos,getBoardActorFromElement,removeStageActor,moveStageActor,moveStageActorToEdge,toggleSceneEntityImage,hasSceneEntityAltImage,confirmDestructive}=deps;
   const refresh=()=>scheduleRefresh?scheduleRefresh(scene):refreshUI(scene);
   const confirmDelete=(title,content)=>confirmDestructive?confirmDestructive({title,content,yes:"Delete"}):Promise.resolve(true);
+  const liveData=()=>getData?.(scene)||d;
   const boardActorSelector="#totm-board-actor-layer .totm-stage-actor, #totm-board-actor-layer .totm-board-actor";
   const resolveBoardActor=node=>{
     const found=getBoardActorFromElement?.(scene,node);
     if(found)return found;
+    const data=liveData();
     const idx=Number(node?.dataset?.baidx);
-    const entry=Number.isInteger(idx)&&idx>=0?d.boardActors?.[idx]:null;
+    const entry=Number.isInteger(idx)&&idx>=0?data.boardActors?.[idx]:null;
     const actor=entry?game.actors.get(entry.actorId):null;
-    return entry&&actor?{d,entry,index:idx,actor}:null;
+    return entry&&actor?{d:data,entry,index:idx,actor}:null;
   };
   const warnMissingBoardActor=()=>ui.notifications.warn("Could not find board character placement data.");
   const wait = ms => new Promise(resolve=>setTimeout(resolve, ms));
@@ -99,172 +101,211 @@ export function bindEnemyStageEvents({el,scene,d,deps}){
     const btn=e.target.closest("[data-target-act]");
     if(!btn)return;
     const act=btn.dataset.targetAct;
-    if(act==="random")await targetRandomEnemy(scene,d);
-    else if(act==="next")await targetNextEnemy(scene,d);
-    else if(act==="clear")await setTargets(scene,[],game.user,d);
-    else if(act==="random-player")await targetRandomAttackPlayer?.(scene,d);
-    else if(act==="choose-player")openAttackTargetChooser?.(scene,d,{scope:"players"});
-    else if(act==="choose-enemy")openAttackTargetChooser?.(scene,d,{scope:"enemies"});
-    else if(act==="random-enemy")await targetRandomAttackEnemy?.(scene,d);
-    else if(act==="clear-all")await clearAttackTargets?.(scene,d);
+    const data=liveData();
+    if(act==="random")await targetRandomEnemy(scene,data);
+    else if(act==="next")await targetNextEnemy(scene,data);
+    else if(act==="clear")await setTargets(scene,[],game.user,data);
+    else if(act==="random-player")await targetRandomAttackPlayer?.(scene,data);
+    else if(act==="choose-player")openAttackTargetChooser?.(scene,data,{scope:"players"});
+    else if(act==="choose-enemy")openAttackTargetChooser?.(scene,data,{scope:"enemies"});
+    else if(act==="random-enemy")await targetRandomAttackEnemy?.(scene,data);
+    else if(act==="clear-all")await clearAttackTargets?.(scene,data);
   });
 
   if(!isGM())return;
 
   const removeNpcAtIndex = async idx => {
-    if(!Number.isInteger(idx)||idx<0||!Array.isArray(d.npcs)||!d.npcs[idx])return;
-    if(!await confirmDelete("Delete NPC?",`${d.npcs[idx].name||"NPC"} will be removed from this scene.`))return;
-    d.npcs.splice(idx,1);
-    await saveData(scene,d);
+    const data=liveData();
+    if(!Number.isInteger(idx)||idx<0||!Array.isArray(data.npcs)||!data.npcs[idx])return;
+    if(!await confirmDelete("Delete NPC?",`${data.npcs[idx].name||"NPC"} will be removed from this scene.`))return;
+    data.npcs.splice(idx,1);
+    await saveData(scene,data);
     emit();
     refreshUI(scene);
   };
   const toggleNpcImageAtIndex = async (idx,node=null) => {
-    if(!Number.isInteger(idx)||idx<0||!Array.isArray(d.npcs)||!d.npcs[idx])return false;
+    const data=liveData();
+    if(!Number.isInteger(idx)||idx<0||!Array.isArray(data.npcs)||!data.npcs[idx])return false;
     await animateSwapThen(node, async ()=>{
-      if(!toggleSceneEntityImage(d.npcs[idx]))return false;
-      await saveData(scene,d);
+      const latest=liveData();
+      const npc=latest.npcs?.[idx];
+      if(!npc||!toggleSceneEntityImage(npc))return false;
+      await saveData(scene,latest);
       emit();
       refreshUI(scene);
     });
     return true;
   };
   const removeEnemyAtIndex = async idx => {
-    if(!Number.isInteger(idx)||idx<0||!Array.isArray(d.enemies)||!d.enemies[idx])return;
-    if(!await confirmDelete("Delete Enemy?",`${d.enemies[idx].name||"Enemy"} will be removed from this encounter.`))return;
-    const targetId=d.enemies[idx].instanceId||d.enemies[idx].id;
-    d.enemies.splice(idx,1);
-    if(!d.enemies.length)d.combatActive=false;
-    await setTargets(scene,getTargets(scene).filter(id=>id!==targetId),game.user,d);
-    await pruneEnemyTokenDocs(scene,d);
-    await saveData(scene,d);
+    const data=liveData();
+    if(!Number.isInteger(idx)||idx<0||!Array.isArray(data.enemies)||!data.enemies[idx])return;
+    if(!await confirmDelete("Delete Enemy?",`${data.enemies[idx].name||"Enemy"} will be removed from this encounter.`))return;
+    const targetId=data.enemies[idx].instanceId||data.enemies[idx].id;
+    data.enemies.splice(idx,1);
+    if(!data.enemies.length)data.combatActive=false;
+    await setTargets(scene,getTargets(scene).filter(id=>id!==targetId),game.user,data);
+    await pruneEnemyTokenDocs(scene,data);
+    await saveData(scene,data);
     emit();
     refreshUI(scene);
   };
   const toggleEnemyImageAtIndex = async (idx,node=null) => {
-    if(!Number.isInteger(idx)||idx<0||!Array.isArray(d.enemies)||!d.enemies[idx])return false;
-    if(!hasSceneEntityAltImage(d.enemies[idx]))return false;
+    const data=liveData();
+    if(!Number.isInteger(idx)||idx<0||!Array.isArray(data.enemies)||!data.enemies[idx])return false;
+    if(!hasSceneEntityAltImage(data.enemies[idx]))return false;
     await animateSwapThen(node, async ()=>{
-      toggleSceneEntityImage(d.enemies[idx]);
-      await saveData(scene,d);
+      const latest=liveData();
+      const enemy=latest.enemies?.[idx];
+      if(!enemy)return false;
+      toggleSceneEntityImage(enemy);
+      await saveData(scene,latest);
       emit();
       refreshUI(scene);
     });
     return true;
   };
 
-  const getActiveBackgroundKey = () => String(d.background||"");
-  const syncCurrentQuestView = bucket => {
-    const key=getActiveBackgroundKey();
-    const normalized=(Array.isArray(bucket)?bucket:[]).map(pin=>foundry.utils.deepClone({...pin,backgroundKey:key}));
-    if(!Array.isArray(d.questPins)) d.questPins=[];
-    d.questPins=d.questPins.filter(pin=>String(pin?.backgroundKey||"")!==key);
-    d.questPins.push(...normalized);
-    if(!d.questPinsByBackground || typeof d.questPinsByBackground!=="object" || Array.isArray(d.questPinsByBackground)) d.questPinsByBackground={};
-    d.questPinsByBackground[key]=normalized.map(pin=>foundry.utils.deepClone(pin));
-    return d.questPinsByBackground[key];
+  const getActiveBackgroundKey = data => String((data||liveData()).background||"");
+  const ensureQuestCollections = data => {
+    if(!Array.isArray(data.questPins)) data.questPins=[];
+    if(!data.questPinsByBackground || typeof data.questPinsByBackground!=="object" || Array.isArray(data.questPinsByBackground)) data.questPinsByBackground={};
+    return data;
   };
-  const getQuestBucket = () => {
-    const key=getActiveBackgroundKey();
-    if(!Array.isArray(d.questPins)) d.questPins=[];
-    if(!d.questPinsByBackground || typeof d.questPinsByBackground!=="object" || Array.isArray(d.questPinsByBackground)) d.questPinsByBackground={};
-    const hasFlatData=d.questPins.some(pin=>pin);
-    const hasBucketData=Object.values(d.questPinsByBackground).some(bucket=>Array.isArray(bucket)&&bucket.length);
+  const syncCurrentQuestView = (data,bucket,key=getActiveBackgroundKey(data)) => {
+    ensureQuestCollections(data);
+    const normalized=(Array.isArray(bucket)?bucket:[]).map(pin=>foundry.utils.deepClone({...pin,backgroundKey:key}));
+    data.questPins=data.questPins.filter(pin=>String(pin?.backgroundKey||"")!==key);
+    data.questPins.push(...normalized);
+    data.questPinsByBackground[key]=normalized.map(pin=>foundry.utils.deepClone(pin));
+    return data.questPinsByBackground[key];
+  };
+  const getQuestBucketState = () => {
+    const data=ensureQuestCollections(liveData());
+    const key=getActiveBackgroundKey(data);
+    const hasFlatData=data.questPins.some(pin=>pin);
+    const hasBucketData=Object.values(data.questPinsByBackground).some(bucket=>Array.isArray(bucket)&&bucket.length);
     if(!hasFlatData && hasBucketData){
       const flat=[];
-      for(const [bucketKey,bucket] of Object.entries(d.questPinsByBackground)){
+      for(const [bucketKey,bucket] of Object.entries(data.questPinsByBackground)){
         if(!Array.isArray(bucket))continue;
         flat.push(...bucket.map(pin=>foundry.utils.deepClone({...pin,backgroundKey:String(pin?.backgroundKey||bucketKey)})));
       }
-      d.questPins=flat;
-    }else if(!hasBucketData && d.questPins.length){
-      const legacy=d.questPins.splice(0,d.questPins.length);
+      data.questPins=flat;
+    }else if(!hasBucketData && data.questPins.length){
+      const legacy=data.questPins.splice(0,data.questPins.length);
       for(const pin of legacy){
         const pinKey=String(pin?.backgroundKey||key);
-        if(!Array.isArray(d.questPinsByBackground[pinKey])) d.questPinsByBackground[pinKey]=[];
-        d.questPinsByBackground[pinKey].push(foundry.utils.deepClone({...pin,backgroundKey:pinKey}));
-        d.questPins.push(foundry.utils.deepClone({...pin,backgroundKey:pinKey}));
+        if(!Array.isArray(data.questPinsByBackground[pinKey])) data.questPinsByBackground[pinKey]=[];
+        data.questPinsByBackground[pinKey].push(foundry.utils.deepClone({...pin,backgroundKey:pinKey}));
+        data.questPins.push(foundry.utils.deepClone({...pin,backgroundKey:pinKey}));
       }
     }
-    const current=d.questPins.filter(pin=>String(pin?.backgroundKey||"")===key);
-    return syncCurrentQuestView(current);
+    const current=data.questPins.filter(pin=>String(pin?.backgroundKey||"")===key);
+    const bucket=syncCurrentQuestView(data,current,key);
+    return {data,key,bucket};
   };
-  const saveQuestBucket = async bucket => {
-    syncCurrentQuestView(bucket);
-    await saveData(scene,d);
+  const getQuestBucket = () => getQuestBucketState().bucket;
+  const saveQuestBucket = async (data,bucket,key=getActiveBackgroundKey(data)) => {
+    syncCurrentQuestView(data,bucket,key);
+    await saveData(scene,data);
     emit();
-    refreshUI(scene);
+    refreshUI(scene,data);
+  };
+  const getQuestPinRef = pinId => {
+    const {data,key,bucket}=getQuestBucketState();
+    const idx=bucket.findIndex(p=>p?.id===pinId);
+    return {data,key,bucket,idx,pin:idx>=0?bucket[idx]:null};
+  };
+  const deleteQuestPinById = async pinId => {
+    const {data,key,bucket,idx,pin}=getQuestPinRef(pinId);
+    if(idx<0){ui.notifications.warn("That quest pin could not be found anymore.");return false;}
+    if(!await confirmDelete("Delete Quest Pin?",`${pin.name||pin.label||"Quest Pin"} will be removed from this scene.`))return false;
+    bucket.splice(idx,1);
+    await saveQuestBucket(data,bucket,key);
+    return true;
+  };
+  const saveQuestPinById = async (pinId,values={}) => {
+    const {data,key,bucket,pin:livePin}=getQuestPinRef(pinId);
+    if(!livePin){ui.notifications.warn("That quest pin could not be found anymore.");return false;}
+    livePin.name=String(values.name||"Quest").trim()||"Quest";
+    livePin.type=String(values.type||"quest");
+    livePin.image=getQuestPinImage?.(livePin.type);
+    livePin.label=livePin.type==="question"?"Question":livePin.type==="complete"?"Complete":"Quest";
+    await saveQuestBucket(data,bucket,key);
+    return true;
+  };
+  const moveQuestPinById = pinId => {
+    const {data,key,bucket,pin:livePin}=getQuestPinRef(pinId);
+    if(!livePin){ui.notifications.warn("That quest pin could not be found anymore.");return false;}
+    if(!openDragPos){ui.notifications.warn("The position editor is not available.");return false;}
+    const opened=openDragPos(livePin,scene,data,async()=>{await saveQuestBucket(data,bucket,key);},async()=>{await deleteQuestPinById(pinId);});
+    if(opened===false){ui.notifications.warn("Could not open the position editor for that quest pin.");return false;}
+    ui.notifications.info("Drag the quest pin, then click Done.");
+    return true;
   };
   const openQuestPinMenu = pin => {
+    const pinId=pin?.id;
+    if(!pinId)return;
     new Dialog({
       title: pin.name||pin.label||"Quest Pin",
-      content: `<form><div class="form-group"><label>Name</label><input name="name" value="${foundry.utils.escapeHTML(String(pin.name||"Quest"))}"/></div><div class="form-group"><label>State</label><select name="type"><option value="quest" ${pin.type==="quest"?"selected":""}>Exclamation</option><option value="question" ${pin.type==="question"?"selected":""}>Question Mark</option><option value="complete" ${pin.type==="complete"?"selected":""}>Tick</option></select></div></form>`,
+      content: `<form><div class="form-group"><label>Name</label><input name="name" value="${attr(pin.name||"Quest")}"/></div><div class="form-group"><label>State</label><select name="type"><option value="quest" ${pin.type==="quest"?"selected":""}>Exclamation</option><option value="question" ${pin.type==="question"?"selected":""}>Question Mark</option><option value="complete" ${pin.type==="complete"?"selected":""}>Tick</option></select></div></form>`,
       buttons: {
-        move:{icon:'<i class="fas fa-arrows-alt"></i>',label:"Move",callback:()=>{
-          const bucket=getQuestBucket();
-          const livePin=bucket.find(p=>p?.id===pin.id);
-          if(!livePin)return;
-          openDragPos?.(livePin,scene,d,async()=>{await saveQuestBucket(bucket);});
-        }},
-        del:{icon:'<i class="fas fa-trash"></i>',label:"Delete",callback:async()=>{const bucket=getQuestBucket();const idx=bucket.findIndex(p=>p?.id===pin.id);if(idx<0)return;bucket.splice(idx,1);await saveQuestBucket(bucket);}},
+        move:{icon:'<i class="fas fa-arrows-alt"></i>',label:"Move",callback:()=>{moveQuestPinById(pinId);}},
+        del:{icon:'<i class="fas fa-trash"></i>',label:"Delete",callback:async()=>{await deleteQuestPinById(pinId);}},
         save:{icon:'<i class="fas fa-check"></i>',label:"Save",callback:async html=>{
-          const bucket=getQuestBucket();
-          const livePin=bucket.find(p=>p?.id===pin.id);
-          if(!livePin)return;
-          livePin.name=String(html.find("[name=name]").val()||"Quest").trim()||"Quest";
-          livePin.type=String(html.find("[name=type]").val()||"quest");
-          livePin.image=getQuestPinImage?.(livePin.type);
-          livePin.label=livePin.type==="question"?"Question":livePin.type==="complete"?"Complete":"Quest";
-          await saveQuestBucket(bucket);
+          await saveQuestPinById(pinId,{name:html.find("[name=name]").val(),type:html.find("[name=type]").val()});
         }}
       },
       default:"save"
     }).render(true);
   };
   const syncCurrentPropView = bucket => {
-    const key=getActiveBackgroundKey();
-    if(!d.propsByBackground || typeof d.propsByBackground!=="object" || Array.isArray(d.propsByBackground)) d.propsByBackground={};
-    d.propsByBackground[key]=bucket;
-    d.props=Array.isArray(bucket)?bucket.map(p=>foundry.utils.deepClone(p)):[];
-    return d.propsByBackground[key];
+    const data=liveData();
+    const key=String(data.background||"");
+    if(!data.propsByBackground || typeof data.propsByBackground!=="object" || Array.isArray(data.propsByBackground)) data.propsByBackground={};
+    data.propsByBackground[key]=bucket;
+    data.props=Array.isArray(bucket)?bucket.map(p=>foundry.utils.deepClone(p)):[];
+    return data.propsByBackground[key];
   };
   const getPropBucket = () => {
-    const key=getActiveBackgroundKey();
-    if(!d.propsByBackground || typeof d.propsByBackground!=="object" || Array.isArray(d.propsByBackground)) d.propsByBackground={};
-    const hasBucketData=Object.values(d.propsByBackground).some(bucket=>Array.isArray(bucket)&&bucket.length);
-    if(!hasBucketData && Array.isArray(d.props) && d.props.length){
-      const legacy=d.props.splice(0,d.props.length);
+    const data=liveData();
+    const key=String(data.background||"");
+    if(!data.propsByBackground || typeof data.propsByBackground!=="object" || Array.isArray(data.propsByBackground)) data.propsByBackground={};
+    const hasBucketData=Object.values(data.propsByBackground).some(bucket=>Array.isArray(bucket)&&bucket.length);
+    if(!hasBucketData && Array.isArray(data.props) && data.props.length){
+      const legacy=data.props.splice(0,data.props.length);
       for(const prop of legacy){
         const propKey=String(prop?.backgroundKey||key);
-        if(!Array.isArray(d.propsByBackground[propKey])) d.propsByBackground[propKey]=[];
-        d.propsByBackground[propKey].push(prop);
+        if(!Array.isArray(data.propsByBackground[propKey])) data.propsByBackground[propKey]=[];
+        data.propsByBackground[propKey].push(prop);
       }
     }
-    if(!Array.isArray(d.propsByBackground[key])) d.propsByBackground[key]=[];
-    return syncCurrentPropView(d.propsByBackground[key]);
+    if(!Array.isArray(data.propsByBackground[key])) data.propsByBackground[key]=[];
+    return syncCurrentPropView(data.propsByBackground[key]);
   };
   const deleteScenePropById = async propId => {
     if(!propId)return;
     if(!await confirmDelete("Delete Prop?","This prop will be removed from the scene."))return;
-    if(!d.propsByBackground || typeof d.propsByBackground!=="object" || Array.isArray(d.propsByBackground)) d.propsByBackground={};
+    const data=liveData();
+    if(!data.propsByBackground || typeof data.propsByBackground!=="object" || Array.isArray(data.propsByBackground)) data.propsByBackground={};
     let removed=false;
-    for(const [key,bucket] of Object.entries(d.propsByBackground)){
+    for(const [key,bucket] of Object.entries(data.propsByBackground)){
       if(!Array.isArray(bucket))continue;
       const next=bucket.filter(p=>p?.id!==propId);
       if(next.length!==bucket.length){
-        d.propsByBackground[key]=next;
+        data.propsByBackground[key]=next;
         removed=true;
       }
     }
-    if(Array.isArray(d.props)){
-      d.props=d.props.filter(p=>p?.id!==propId);
+    if(Array.isArray(data.props)){
+      data.props=data.props.filter(p=>p?.id!==propId);
       if(!removed){
         removed=true;
       }
     }
     if(!removed)return;
     syncCurrentPropView(getPropBucket());
-    await saveData(scene,d);
+    await saveData(scene,data);
     emit();
     refreshUI(scene);
   };
@@ -276,7 +317,7 @@ export function bindEnemyStageEvents({el,scene,d,deps}){
     await animateSwapThen(node, async ()=>{
       toggleSceneEntityImage(prop);
       syncCurrentPropView(propBucket);
-      await saveData(scene,d);
+      await saveData(scene,liveData());
       emit();
       refreshUI(scene);
     });
@@ -299,7 +340,7 @@ export function bindEnemyStageEvents({el,scene,d,deps}){
 
   const addSceneProp = async (image, opts={}) => {
     if(!image)return;
-    const activeBackgroundKey=String(d.background||"");
+    const activeBackgroundKey=String(liveData().background||"");
     const name = String(opts.name || image.split("/").pop()?.replace(/\.\w+$/,"") || "Prop").trim() || "Prop";
     const prop = {
       id: foundry.utils.randomID(),
@@ -312,7 +353,7 @@ export function bindEnemyStageEvents({el,scene,d,deps}){
       scale: Number.isFinite(opts.scale) ? opts.scale : 100
     };
     const commit=async()=>{
-      const live=getData?.(scene)||d;
+      const live=liveData();
       commitSceneProp(live,prop);
       await saveData(scene,live);
       emit();
@@ -323,7 +364,7 @@ export function bindEnemyStageEvents({el,scene,d,deps}){
       return;
     }
     ui.notifications.info(`Position ${name}. Players will see it after you click Done.`);
-    openDragPos(prop, scene, d, commit, async () => {
+    openDragPos(prop, scene, liveData(), commit, async () => {
       ui.notifications.info(`Cancelled ${name} placement.`);
     });
   };
@@ -411,7 +452,7 @@ export function bindEnemyStageEvents({el,scene,d,deps}){
     if(!actor || actor.type === "character") return;
     const enemy = makeEnemyEntry(actor, opts);
     const commit=async()=>{
-      const live=getData?.(scene)||d;
+      const live=liveData();
       if(!Array.isArray(live.enemies))live.enemies=[];
       live.enemies.push(foundry.utils.deepClone(enemy));
       await ensureEnemyTokenDocs(scene, live);
@@ -425,7 +466,7 @@ export function bindEnemyStageEvents({el,scene,d,deps}){
       return;
     }
     ui.notifications.info(`Position ${actor.name}. Players will see it after you click Done.`);
-    openDragPos(enemy, scene, d, commit, async () => {
+    openDragPos(enemy, scene, liveData(), commit, async () => {
       ui.notifications.info(`Cancelled ${actor.name} placement.`);
     });
   };
@@ -460,7 +501,7 @@ export function bindEnemyStageEvents({el,scene,d,deps}){
         const actor = await fromUuid(data.uuid);
         if(!actor) return;
         if(actor.type === "character"){
-          await addStageActor(scene, d, actor, {
+          await addStageActor(scene, liveData(), actor, {
             posX: Number.isFinite(posX) ? posX : undefined,
             posY: Number.isFinite(posY) ? posY : undefined
           });
@@ -492,11 +533,13 @@ export function bindEnemyStageEvents({el,scene,d,deps}){
   bindEnemyDropZone(el.querySelector("#totm-enemy-bar"));
 
   const openEnemyPosition = (idx,node=null) => {
-    const en=d.enemies?.[idx];
+    const data=liveData();
+    const en=data.enemies?.[idx];
     if(!en)return;
-    openDragPos?.(en, scene, d, async () => {
-      await ensureEnemyTokenDocs(scene, d);
-      await saveData(scene, d);
+    openDragPos?.(en, scene, data, async () => {
+      const latest=liveData();
+      await ensureEnemyTokenDocs(scene, latest);
+      await saveData(scene, latest);
       emit();
       refresh();
     }, async () => {
@@ -504,10 +547,11 @@ export function bindEnemyStageEvents({el,scene,d,deps}){
     });
   };
   const openNpcPosition = (idx,node=null) => {
-    const npc=d.npcs?.[idx];
+    const data=liveData();
+    const npc=data.npcs?.[idx];
     if(!npc)return;
-    openDragPos?.(npc, scene, d, async () => {
-      await saveData(scene, d);
+    openDragPos?.(npc, scene, data, async () => {
+      await saveData(scene, liveData());
       emit();
       refresh();
     }, async () => {
@@ -518,9 +562,9 @@ export function bindEnemyStageEvents({el,scene,d,deps}){
     const propBucket=getPropBucket();
     const prop=propBucket[idx];
     if(!prop)return;
-    openDragPos?.(prop, scene, d, async () => {
+    openDragPos?.(prop, scene, liveData(), async () => {
       syncCurrentPropView(propBucket);
-      await saveData(scene,d);
+      await saveData(scene,liveData());
       emit();
       refresh();
     }, async () => {
@@ -532,16 +576,18 @@ export function bindEnemyStageEvents({el,scene,d,deps}){
     const card=e.target.closest(".totm-enemy-card"),ab=e.target.closest("[data-eact]");
     if(!card)return;
     const i=+card.dataset.eidx,targetId=card.dataset.targetId;
+    const data=liveData();
     if(ab?.dataset.eact==="remove"){
       await removeEnemyAtIndex(i);
       return;
     }
-    await toggleEnemyTarget(scene,d,targetId);
+    await toggleEnemyTarget(scene,data,targetId);
   });
   el.querySelector("#totm-enemy-bar")?.addEventListener("dblclick",e=>{
     const card=e.target.closest(".totm-enemy-card");
     if(!card)return;
-    const en=d.enemies[+card.dataset.eidx],a=en?getEncounterActor(en,scene):null;
+    const data=liveData();
+    const en=data.enemies?.[+card.dataset.eidx],a=en?getEncounterActor(en,scene):null;
     a?.sheet?.render?.(true);
   });
   el.querySelector("#totm-enemy-bar")?.addEventListener("contextmenu",e=>{
@@ -555,9 +601,10 @@ export function bindEnemyStageEvents({el,scene,d,deps}){
   stage?.addEventListener("click",async e=>{
     const enemy=e.target.closest(".totm-scene-enemy");
     if(enemy){
-      if(!d.combatActive)return;
+      const data=liveData();
+      if(!data.combatActive)return;
       const enemyId=enemy.dataset.targetId;
-      if(enemyId)await toggleEnemyTarget(scene,d,enemyId);
+      if(enemyId)await toggleEnemyTarget(scene,data,enemyId);
       return;
     }
     const npc=e.target.closest(".totm-scene-npc");
@@ -597,13 +644,15 @@ export function bindEnemyStageEvents({el,scene,d,deps}){
     }
     const enemy=e.target.closest(".totm-scene-enemy");
     if(enemy){
-      const en=d.enemies[+enemy.dataset.eidx],a=en?getEncounterActor(en,scene):null;
+      const data=liveData();
+      const en=data.enemies?.[+enemy.dataset.eidx],a=en?getEncounterActor(en,scene):null;
       a?.sheet?.render?.(true);
       return;
     }
     const npcNode=e.target.closest(".totm-scene-npc");
     if(npcNode){
-      const npc=d.npcs?.[+npcNode.dataset.nidx];
+      const data=liveData();
+      const npc=data.npcs?.[+npcNode.dataset.nidx];
       const actor=game.actors?.contents?.find?.(a=>a.img===npc?.image||a.prototypeToken?.texture?.src===npc?.image);
       actor?.sheet?.render?.(true);
       return;
@@ -624,7 +673,8 @@ export function bindEnemyStageEvents({el,scene,d,deps}){
     const enemy=e.target.closest(".totm-scene-enemy");
     if(enemy){
       e.preventDefault();
-      const idx=+enemy.dataset.eidx,en=d.enemies[idx];
+      const data=liveData();
+      const idx=+enemy.dataset.eidx,en=data.enemies?.[idx];
       if(!en)return;
       if(!e.shiftKey&&hasSceneEntityAltImage(en)){
         void toggleEnemyImageAtIndex(idx,enemy);
@@ -636,7 +686,8 @@ export function bindEnemyStageEvents({el,scene,d,deps}){
     const npc=e.target.closest(".totm-scene-npc");
     if(npc){
       e.preventDefault();
-      const idx=+npc.dataset.nidx,liveNpc=d.npcs?.[idx];
+      const data=liveData();
+      const idx=+npc.dataset.nidx,liveNpc=data.npcs?.[idx];
       if(!liveNpc)return;
       if(!e.shiftKey&&hasSceneEntityAltImage(liveNpc)){
         void toggleNpcImageAtIndex(idx,npc);
@@ -666,9 +717,10 @@ export function bindEnemyStageEvents({el,scene,d,deps}){
       e.preventDefault();
       const idx=+actor.dataset.baidx;
       if(!Number.isInteger(idx)||idx<0)return;
-      if(e.shiftKey){await moveStageActorToEdge(scene,d,idx,"front");return;}
-      if(e.altKey){await moveStageActorToEdge(scene,d,idx,"back");return;}
-      openStageActorCfg?.(scene,d,idx);
+      const data=liveData();
+      if(e.shiftKey){await moveStageActorToEdge(scene,data,idx,"front");return;}
+      if(e.altKey){await moveStageActorToEdge(scene,data,idx,"back");return;}
+      openStageActorCfg?.(scene,data,idx);
       return;
     }
     const quest=e.target.closest(".totm-scene-quest");

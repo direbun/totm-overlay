@@ -18,6 +18,7 @@ body.totm-active #totm-ui.totm-soft-refresh .totm-enemy-actions,
 body.totm-active #totm-ui.totm-soft-refresh .totm-tb-btn,
 body.totm-active #totm-ui.totm-soft-refresh .totm-btn-sm,
 body.totm-active #totm-ui.totm-soft-refresh #totm-clock-dock{animation:none!important;transition:none!important}
+body.totm-active #totm-ui.totm-has-rendered .totm-actor-card{animation:none!important}
 body.totm-active #hotbar{opacity:0!important;pointer-events:none!important}
 
 #totm-ui[data-style="classic"]{--totm-font:"Signika","Palatino Linotype",serif;--totm-bg:#07070c;--totm-panel:rgba(10,10,18,.94);--totm-panel-border:rgba(180,160,110,.2);--totm-gold:#c9a84c;--totm-gold-dim:rgba(201,168,76,.3);--totm-gold-glow:rgba(201,168,76,.12);--totm-text:#e8e4dc;--totm-text-dim:rgba(232,228,220,.5);--totm-text-faint:rgba(232,228,220,.25);--totm-highlight:#e2c87e;--totm-danger:#a0392e;--totm-radius:5px;--totm-bg-accent:radial-gradient(circle at top,rgba(255,255,255,.05),transparent 45%)}
@@ -46,7 +47,7 @@ body.totm-active #hotbar{opacity:0!important;pointer-events:none!important}
 .totm-stage-actor:hover img{filter:drop-shadow(0 0 18px rgba(201,168,76,.45)) drop-shadow(0 4px 20px rgba(0,0,0,.6));transform:scale(1.02)}
 .totm-scene-prop img{transition:filter 180ms ease,transform 180ms ease}
 .totm-scene-prop:hover img{filter:drop-shadow(0 0 14px rgba(201,168,76,.4)) drop-shadow(0 4px 20px rgba(0,0,0,.6));transform:scale(1.01)}
-.totm-scene-npc.is-being-positioned,.totm-scene-prop.is-being-positioned,.totm-stage-actor.is-being-positioned,.totm-scene-enemy.is-being-positioned{opacity:0!important;pointer-events:none!important}
+.totm-scene-npc.is-being-positioned,.totm-scene-prop.is-being-positioned,.totm-stage-actor.is-being-positioned,.totm-scene-enemy.is-being-positioned,.totm-scene-quest.is-being-positioned{opacity:0!important;pointer-events:none!important}
 .totm-scene-npc.is-image-swapping img,.totm-scene-prop.is-image-swapping img{animation:totmSceneImageSwap .35s ease}
 .totm-scene-npc.is-image-swap-pending img,.totm-scene-prop.is-image-swap-pending img,.totm-scene-enemy.is-image-swap-pending img{animation:totmSceneImageSwapOut .14s ease forwards}
 .totm-scene-quest{pointer-events:auto;cursor:pointer;z-index:3}
@@ -110,7 +111,6 @@ body.totm-active #hotbar{opacity:0!important;pointer-events:none!important}
 
 /* Layout */
 #totm-ui .totm-layout{position:relative;z-index:1;display:flex;width:100%;height:100%;flex-direction:column}
-.totm-weather-chip{max-width:180px;overflow:hidden;text-overflow:ellipsis}
 .totm-main-row{display:flex;flex:1;min-height:0}
 #totm-hotbar-slot{flex:0 0 88px;display:flex;align-items:center;justify-content:center;padding:10px 14px;background:linear-gradient(180deg,rgba(7,7,12,.82),rgba(10,10,18,.94));border-top:1px solid rgba(255,255,255,.04);border-bottom:1px solid var(--totm-panel-border);position:relative;z-index:3}
 #totm-hotbar-slot::before{content:"Actions";position:absolute;left:12px;top:8px;font-size:9px;letter-spacing:1.6px;text-transform:uppercase;color:var(--totm-text-faint)}
@@ -230,15 +230,6 @@ body.totm-active #hotbar{opacity:0!important;pointer-events:none!important}
 #totm-board-actor-layer .totm-stage-actor img,#totm-board-actor-layer .totm-board-actor img{display:block;max-width:34vw;max-height:48vh;object-fit:contain}
 #totm-topbar{display:flex;align-items:center;justify-content:space-between;padding:8px 12px;z-index:6;position:relative;flex-shrink:0;flex-wrap:wrap;gap:4px}
 .totm-topbar-left,.totm-topbar-right{display:flex;align-items:center;gap:4px;flex-wrap:wrap}
-#totm-st-slot{display:flex;align-items:center;max-width:100%;overflow:hidden;flex:0 1 auto}
-#totm-st-slot #simple-timekeeping{position:static!important;top:auto!important;left:auto!important;margin:0!important;width:auto!important;min-width:0!important;z-index:auto!important;zoom:.82}
-#totm-st-slot #simple-timekeeping nav{padding:0;gap:2px}
-#totm-st-slot #simple-timekeeping #events{display:none!important}
-#totm-st-slot #simple-timekeeping .controls-left,#totm-st-slot #simple-timekeeping .controls-right{gap:0}
-#totm-st-slot #simple-timekeeping nav button{width:20px;height:20px;min-width:20px;padding:0}
-#totm-st-slot #simple-timekeeping nav button i{font-size:11px}
-#totm-st-slot #simple-timekeeping .inner-nav-wrapper{gap:3px;align-items:center}
-#totm-st-slot #simple-timekeeping .inner-nav-wrapper span{padding:1px 8px;font-size:11px;line-height:1.1}
 .totm-scene-label{font-size:13px;font-weight:600;color:var(--totm-text)}
 .totm-live-badge{display:inline-flex;align-items:center;gap:4px;padding:3px 8px;border-radius:12px;font-size:9px;font-weight:700;letter-spacing:1px;text-transform:uppercase}
 .totm-live-badge.is-live{background:rgba(68,170,136,.2);color:#6ec9a0;border:1px solid rgba(68,170,136,.3)}.totm-live-badge.is-gm{background:rgba(160,57,46,.2);color:#d07060;border:1px solid rgba(160,57,46,.3)}

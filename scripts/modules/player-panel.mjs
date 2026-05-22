@@ -48,6 +48,7 @@ export function bindPlayerPanelEvents({el,scene,d,deps}){
     isGM,
     saveData,
     emit,
+    getData,
     refreshUI,
     scheduleRefresh,
     updateTargetHighlights,
@@ -63,7 +64,12 @@ export function bindPlayerPanelEvents({el,scene,d,deps}){
     toggleActorAfkStatus,
     confirmDestructive
   }=deps;
+  const panel=el.querySelector("#totm-actor-panel");
+  if(panel?.dataset.totmPlayerPanelBound==="1")return;
+  if(panel)panel.dataset.totmPlayerPanelBound="1";
   const refresh=()=>scheduleRefresh?scheduleRefresh(scene):refreshUI(scene);
+  const currentData=()=>getData?.(scene)||d;
+  const findActorIndex=(data,actorId)=>(data.actors||[]).findIndex(a=>a.id===actorId);
 
   el.querySelector("#totm-random-player")?.addEventListener("click",async()=>{await targetRandomPlayer(scene,d);});
   el.querySelector("#totm-clear-player-targets")?.addEventListener("click",async()=>{await clearActorTargets?.(scene);});
@@ -72,18 +78,21 @@ export function bindPlayerPanelEvents({el,scene,d,deps}){
   el.querySelector("#totm-actor-list")?.addEventListener("click",async e=>{
     const sb=e.target.closest("[data-status]");
     if(sb){
-      const i=+sb.closest(".totm-actor-card").dataset.idx;
+      const card=sb.closest(".totm-actor-card");
+      const actorId=card?.dataset.actorId;
+      const liveData=currentData();
+      const i=findActorIndex(liveData,actorId);
+      if(i<0)return;
       const st=sb.dataset.status;
-      const actorId=d.actors[i]?.id;
       if(st==="afk"){
         if(!(game.settings.get("totm-overlay","playersCanAfk")&&game.actors.get(actorId)?.isOwner))return;
-        await toggleActorAfkStatus(scene,d,actorId);
+        await toggleActorAfkStatus(scene,liveData,actorId);
         return;
       }else{
         if(!isGM())return;
-        d.actors[i].status=d.actors[i].status===st?"":st;
+        liveData.actors[i].status=liveData.actors[i].status===st?"":st;
       }
-      await saveData(scene,d);
+      await saveData(scene,liveData);
       emit();
       refresh();
       return;
@@ -98,34 +107,38 @@ export function bindPlayerPanelEvents({el,scene,d,deps}){
 
     const ab=e.target.closest("[data-act]");
     if(ab&&(isGM()||["target","pin","pin-cfg"].includes(ab.dataset.act))){
-      const i=+ab.closest(".totm-actor-card").dataset.idx;
+      const card=ab.closest(".totm-actor-card");
+      const actorId=card?.dataset.actorId;
+      const liveData=currentData();
+      const i=findActorIndex(liveData,actorId);
+      if(i<0)return;
       const act=ab.dataset.act;
       if(act==="target"){
-        if(!await togglePlayerTarget(d.actors[i].id,scene))ui.notifications.warn("No scene token found for that player.");
-        updateTargetHighlights?.(scene,d);
+        if(!await togglePlayerTarget(liveData.actors[i].id,scene))ui.notifications.warn("No scene token found for that player.");
+        updateTargetHighlights?.(scene,liveData);
         return;
       }
       if(act==="pin"){
-        await toggleActorPin(scene,d,i);
+        await toggleActorPin(scene,liveData,i);
         return;
       }
       if(act==="pin-cfg"){
-        openActorPinCfg(scene,d,i);
+        openActorPinCfg(scene,liveData,i);
         return;
       }
       if(!isGM())return;
       if(act==="remove"){
-        const ok=confirmDestructive?await confirmDestructive({title:"Remove Player Card?",content:`${d.actors[i]?.name||"Actor"} will be removed from this TOTM scene.`,yes:"Remove"}):true;
+        const ok=confirmDestructive?await confirmDestructive({title:"Remove Player Card?",content:`${liveData.actors[i]?.name||"Actor"} will be removed from this TOTM scene.`,yes:"Remove"}):true;
         if(!ok)return;
-        d.actors.splice(i,1);
+        liveData.actors.splice(i,1);
       }
-      else if(act==="toggle-vis")d.actors[i].visible=d.actors[i].visible===false;
-      else if(act==="highlight")d.actors[i].highlighted=!d.actors[i].highlighted;
+      else if(act==="toggle-vis")liveData.actors[i].visible=liveData.actors[i].visible===false;
+      else if(act==="highlight")liveData.actors[i].highlighted=!liveData.actors[i].highlighted;
       else if(act==="adjust"){
-        openActorCfg(scene,d,i);
+        openActorCfg(scene,liveData,i);
         return;
       }
-      await saveData(scene,d);
+      await saveData(scene,liveData);
       emit();
       refresh();
       return;
@@ -133,8 +146,7 @@ export function bindPlayerPanelEvents({el,scene,d,deps}){
 
     const card=e.target.closest(".totm-actor-card");
     if(card&&!e.target.closest(".totm-actor-status-bar")&&!e.target.closest(".totm-actor-btns")){
-      const a=d.actors[+card.dataset.idx];
-      const ac=game.actors.get(a?.id);
+      const ac=game.actors.get(card.dataset.actorId);
       if(ac?.sheet)ac.sheet.render(true);
     }
   });
@@ -143,7 +155,7 @@ export function bindPlayerPanelEvents({el,scene,d,deps}){
     const list=el.querySelector("#totm-actor-list");
     if(list){
       list.querySelectorAll(".totm-actor-card").forEach(card=>card.addEventListener("dragstart",e=>{
-        const actorId=d.actors?.[+card.dataset.idx]?.id;
+        const actorId=card.dataset.actorId;
         if(!actorId)return;
         const actor=game.actors.get(actorId);
         if(!actor)return;
@@ -159,9 +171,10 @@ export function bindPlayerPanelEvents({el,scene,d,deps}){
         try{j=JSON.parse(e.dataTransfer.getData("text/plain"));}catch{return;}
         if(j.type!=="Actor")return;
         const a=await fromUuid(j.uuid);
-        if(!a||d.actors.find(x=>x.id===a.id))return;
-        d.actors.push(makeEntry(a,d.actors.length));
-        await saveData(scene,d);
+        const liveData=currentData();
+        if(!a||liveData.actors.find(x=>x.id===a.id))return;
+        liveData.actors.push(makeEntry(a,liveData.actors.length));
+        await saveData(scene,liveData);
         emit();
         refresh();
         ui.notifications.info(`Added ${a.name}.`);
