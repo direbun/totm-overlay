@@ -55,6 +55,7 @@ body.totm-active #hotbar{opacity:0!important;pointer-events:none!important}
 .totm-scene-quest:hover img{filter:drop-shadow(0 0 14px rgba(201,168,76,.45)) drop-shadow(0 4px 20px rgba(0,0,0,.6))}
 .totm-scene-enemy{z-index:3;pointer-events:auto;cursor:pointer}
 .totm-scene-enemy img{transition:filter 180ms ease,transform 180ms ease}
+.totm-scene-enemy.is-unrevealed-image img{width:96px;height:96px;max-width:18vw;max-height:18vh;object-fit:contain;filter:drop-shadow(0 4px 16px rgba(0,0,0,.55))}
 .totm-scene-enemy:hover img{filter:drop-shadow(0 0 18px rgba(201,168,76,.45)) drop-shadow(0 4px 20px rgba(0,0,0,.6));transform:scale(1.015)}
 .totm-scene-enemy.enemy-targeted::before{content:"";position:absolute;inset:-20px;z-index:-1;border-radius:999px;background:radial-gradient(circle,var(--totm-target-color) 0%,color-mix(in srgb,var(--totm-target-color) 65%, transparent) 32%,transparent 72%);filter:blur(16px);opacity:.95;transform:scale(1.2);pointer-events:none}
 .totm-scene-enemy.enemy-targeted img{filter:drop-shadow(0 0 22px var(--totm-target-color)) drop-shadow(0 0 44px var(--totm-target-color)) drop-shadow(0 0 70px color-mix(in srgb,var(--totm-target-color) 60%, white)) drop-shadow(0 4px 20px rgba(0,0,0,.6));transform:scale(1.05)}
@@ -104,6 +105,7 @@ body.totm-active #hotbar{opacity:0!important;pointer-events:none!important}
 .totm-enc-enemy-main{min-width:0}
 .totm-enc-enemy-name{font-size:11px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .totm-enc-enemy-meta{font-size:9px;color:#888;margin-top:2px;word-break:break-word}
+.totm-enc-enemy-description{width:100%;min-height:42px;margin-top:6px;resize:vertical;font-size:10px;line-height:1.25;background:rgba(0,0,0,.22);border:1px solid rgba(255,255,255,.1);border-radius:4px;color:var(--totm-text);padding:5px 6px}
 .totm-enc-villain-controls{display:grid;grid-template-columns:auto minmax(0,1fr);gap:8px;align-items:center;margin-top:6px}
 .totm-enc-villain-toggle{display:flex;align-items:center;gap:4px;font-size:10px;white-space:nowrap}
 .totm-enc-next-form{font-size:10px;min-width:0;width:100%}
@@ -192,6 +194,9 @@ body.totm-active #hotbar{opacity:0!important;pointer-events:none!important}
 .totm-player-portrait-frame{position:relative;width:100%;aspect-ratio:1 / 1;min-height:0;border-radius:8px;overflow:hidden;border:2px solid rgba(255,255,255,.08);background:linear-gradient(180deg,rgba(16,20,30,.92),rgba(8,10,18,.96));box-shadow:inset 0 0 0 1px rgba(255,255,255,.04)}
 .totm-player-portrait-frame .totm-card-bg{position:absolute;inset:0}
 .totm-player-portrait-frame .totm-card-overlay{position:absolute;inset:0;background:linear-gradient(180deg,rgba(255,255,255,.03),rgba(0,0,0,.08))}
+.totm-player-targeters{position:absolute;top:6px;left:6px;z-index:4;display:flex;align-items:center;gap:4px;max-width:calc(100% - 12px);flex-wrap:wrap;pointer-events:none}
+.totm-player-targeters:empty{display:none}
+.totm-player-targeter{width:22px;height:22px;border-radius:999px;background-color:#222;background-position:center;background-size:cover;background-repeat:no-repeat;border:2px solid var(--targeter-color,#fff);box-shadow:0 0 0 1px rgba(0,0,0,.7),0 0 14px color-mix(in srgb,var(--targeter-color,#fff) 45%, transparent)}
 .totm-actor-card:hover .totm-player-portrait-frame .totm-card-bg{transform:scale(1.03)}
 .totm-player-stats-col{display:flex;min-width:0;border-radius:8px;background:linear-gradient(180deg,rgba(54,47,58,.96),rgba(42,36,47,.98));border:2px solid rgba(201,168,76,.18);box-shadow:inset 0 1px 0 rgba(255,255,255,.05)}
 .totm-actor-card{min-height:0;justify-content:flex-start;border-radius:8px;background:linear-gradient(180deg,rgba(15,18,28,.98),rgba(9,12,20,.98))}
@@ -301,6 +306,29 @@ body.totm-active #hotbar{opacity:0!important;pointer-events:none!important}
 .totm-clock-slash.filled{background:var(--clock-color);border-color:transparent}
 .totm-clock-delete{flex-shrink:0;width:24px;height:24px;border:none;border-radius:999px;background:rgba(255,255,255,.06);color:var(--totm-text-dim);cursor:pointer}
 .totm-clock-delete:hover{background:rgba(255,255,255,.12);color:#ff8d8d}
+#totm-minimap-dock{position:fixed;left:16px;top:72px;z-index:72;width:var(--totm-minimap-size,320px);background:rgba(10,10,18,.95);border:1px solid var(--totm-panel-border);border-radius:10px;box-shadow:0 18px 44px rgba(0,0,0,.42);backdrop-filter:blur(10px);overflow:hidden;user-select:none}
+.totm-minimap-head{height:34px;display:flex;align-items:center;justify-content:space-between;gap:8px;padding:0 8px 0 10px;border-bottom:1px solid rgba(255,255,255,.08);cursor:move}
+.totm-minimap-title{display:flex;align-items:center;gap:7px;color:var(--totm-gold);font-size:11px;font-weight:900;letter-spacing:1px;text-transform:uppercase;min-width:0}
+.totm-minimap-title span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.totm-minimap-actions{display:flex;align-items:center;gap:4px;flex-shrink:0}
+.totm-minimap-actions button,.totm-minimap-controls button{border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.045);color:var(--totm-text-dim);border-radius:6px;cursor:pointer;font-family:inherit;font-size:10px;font-weight:800}
+.totm-minimap-actions button{width:24px;height:24px;display:flex;align-items:center;justify-content:center;padding:0}
+.totm-minimap-actions button:hover,.totm-minimap-actions button.is-active,.totm-minimap-controls button:hover{color:var(--totm-gold);border-color:var(--totm-gold-dim);background:var(--totm-gold-glow)}
+.totm-minimap-controls{display:flex;align-items:center;gap:5px;flex-wrap:wrap;padding:7px;border-bottom:1px solid rgba(255,255,255,.08);background:rgba(255,255,255,.025)}
+.totm-minimap-controls button{height:26px;display:inline-flex;align-items:center;gap:5px;padding:0 7px;min-width:0}
+.totm-minimap-controls button.is-danger{color:#ff9a90;border-color:rgba(160,57,46,.4);background:rgba(80,20,18,.24)}
+.totm-minimap-swatch{width:10px;height:10px;border-radius:999px;background:var(--pin-color);box-shadow:0 0 0 1px rgba(255,255,255,.45),0 0 8px color-mix(in srgb,var(--pin-color) 45%, transparent)}
+.totm-minimap-body{padding:8px}
+.totm-minimap-map{position:relative;width:var(--totm-minimap-size,320px);height:var(--totm-minimap-size,320px);max-width:calc(var(--totm-minimap-size,320px) - 16px);max-height:calc(var(--totm-minimap-size,320px) - 16px);overflow:hidden;border-radius:8px;border:1px solid rgba(201,168,76,.24);background:#101018 center/100% 100% no-repeat;box-shadow:inset 0 0 0 1px rgba(255,255,255,.04)}
+.totm-minimap-map.is-editable{cursor:crosshair;border-color:var(--totm-gold-dim)}
+.totm-minimap-empty{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;color:var(--totm-text-dim);font-size:11px;text-align:center;padding:18px}
+.totm-minimap-empty i{font-size:26px;color:var(--totm-text-faint)}
+.totm-minimap-pin{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:23px;height:23px;border:2px solid rgba(255,255,255,.92);border-radius:999px;background:var(--pin-color,#58a6ff);box-shadow:0 0 0 2px rgba(0,0,0,.65),0 0 14px color-mix(in srgb,var(--pin-color,#58a6ff) 50%, transparent);display:flex;align-items:center;justify-content:center;color:#111;font-size:10px;font-weight:900;line-height:1;padding:0;cursor:default}
+.totm-minimap-pin.is-editable{cursor:pointer;pointer-events:auto}
+.totm-minimap-pin.is-selected{box-shadow:0 0 0 2px #fff,0 0 0 5px rgba(0,0,0,.72),0 0 18px color-mix(in srgb,var(--pin-color,#58a6ff) 62%, transparent);transform:translate(-50%,-50%) scale(1.12)}
+.totm-minimap-resize{position:absolute;right:7px;bottom:7px;width:25px;height:25px;border-radius:7px;border:1px solid rgba(255,255,255,.16);background:rgba(10,10,18,.72);cursor:nwse-resize;box-shadow:0 5px 12px rgba(0,0,0,.32)}
+.totm-minimap-resize::before{content:"";position:absolute;inset:6px;background:linear-gradient(135deg,transparent 0 30%,var(--totm-gold) 30% 40%,transparent 40% 52%,var(--totm-gold) 52% 62%,transparent 62% 74%,var(--totm-gold) 74% 84%,transparent 84% 100%)}
+.totm-minimap-resize:hover{border-color:var(--totm-gold-dim)}
 .totm-hit-anim{position:absolute;inset:0;z-index:7;pointer-events:none;overflow:hidden;border-radius:inherit}
 .totm-hit-anim video{width:100%;height:100%;object-fit:cover;mix-blend-mode:screen;opacity:.95}
 .totm-enemy-card,.totm-actor-card{position:relative}
@@ -332,6 +360,7 @@ body.totm-active #hotbar{opacity:0!important;pointer-events:none!important}
 #totm-enemy-bar{display:flex;gap:4px;padding:6px 8px;overflow-x:auto;align-items:stretch;min-height:0}
 #totm-enemy-bar:empty{display:none}
 .totm-enemy-card{flex:0 0 auto;width:150px;height:65px;position:relative;display:flex;flex-direction:column;justify-content:flex-end;border-radius:5px;overflow:hidden;cursor:pointer;border:2px solid rgba(255,255,255,.06);transition:all 200ms ease;box-shadow:0 8px 18px rgba(0,0,0,.16)}
+.totm-enemy-card.has-description{height:82px}
 .totm-enemy-card:hover{border-color:rgba(255,255,255,.2)}
 .totm-enemy-card.enemy-targeted{border-color:var(--totm-target-color);box-shadow:0 0 0 1px color-mix(in srgb,var(--totm-target-color) 70%, white),0 0 18px color-mix(in srgb,var(--totm-target-color) 60%, transparent),0 0 34px color-mix(in srgb,var(--totm-target-color) 45%, transparent)}
 .totm-enemy-card.enemy-targeted::after{content:"";position:absolute;inset:-6px;border-radius:10px;pointer-events:none;box-shadow:0 0 0 2px color-mix(in srgb,var(--totm-target-color) 78%, white),0 0 22px color-mix(in srgb,var(--totm-target-color) 48%, transparent)}
@@ -342,9 +371,11 @@ body.totm-active #hotbar{opacity:0!important;pointer-events:none!important}
 @keyframes totmEnemyCardFadeOut{0%{opacity:1;transform:scale(1)}100%{opacity:0;transform:scale(.92)}}
 @keyframes totmEnemyCardFadeIn{0%{opacity:0;transform:scale(1.08)}100%{opacity:1;transform:scale(1)}}
 .totm-enemy-card .totm-card-bg{position:absolute;inset:0;background-size:cover;background-position:center;z-index:0}
+.totm-enemy-card.is-unrevealed-image .totm-card-bg{background-size:52px 52px;background-position:center 12px;background-repeat:no-repeat;background-color:rgba(17,21,31,.94)}
 .totm-enemy-card .totm-card-overlay{position:absolute;inset:0;background:linear-gradient(to bottom,transparent 20%,rgba(0,0,0,.85) 100%);z-index:1}
 .totm-enemy-card .totm-card-content{position:relative;z-index:2;padding:3px 6px 4px}
 .totm-enemy-card .totm-actor-name{font-size:10px}
+.totm-enemy-desc{font-size:9px;line-height:1.15;color:rgba(235,231,222,.82);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px}
 .totm-enemy-card .totm-resource-row{height:8px;gap:0}
 .totm-enemy-card .totm-resource-bar{height:4px;border-radius:999px}
 .totm-enemy-card .totm-resource-value,.totm-enemy-card .totm-resource-lbl,.totm-enemy-card .totm-resource-icon{display:none}
@@ -356,6 +387,7 @@ body.totm-active #hotbar{opacity:0!important;pointer-events:none!important}
 .totm-enemy-actions button{background:rgba(0,0,0,.6);border:none;color:#ff6b6b;cursor:pointer;padding:2px 4px;font-size:9px;border-radius:2px}
 .totm-enemy-actions button[data-eact="target"]{color:rgba(255,255,255,.8)}
 .totm-enemy-actions button.active-target,.totm-enemy-actions button[data-eact="target"]:hover{color:var(--totm-gold)}
+.totm-enemy-actions button.active-reveal{color:var(--totm-gold);box-shadow:0 0 0 1px rgba(201,168,76,.35),0 0 10px rgba(201,168,76,.22)}
 
 /* Dropdowns */
 .totm-bg-dropdown{position:absolute;top:100%;right:0;z-index:20;min-width:240px;max-width:320px;max-height:400px;overflow-y:auto;background:rgba(12,12,20,.96);border:1px solid var(--totm-panel-border);border-radius:6px;padding:6px;box-shadow:0 6px 24px rgba(0,0,0,.5);backdrop-filter:blur(8px)}
