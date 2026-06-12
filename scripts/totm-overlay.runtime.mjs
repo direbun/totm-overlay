@@ -11,7 +11,14 @@ const cssUrl=value=>`url("${String(value??"").replace(/\\/g,"/").replace(/"/g,"%
 const getF=(s,k)=>s?.getFlag(MODULE_ID,k),setF=async(s,k,v)=>s?.setFlag(MODULE_ID,k,v),unsetF=async(s,k)=>s?.unsetFlag(MODULE_ID,k);
 const MINIMAP_PIN_COLORS={party:"#42d96b",enemy:"#e84c4f",objective:"#e6c84f",point:"#58a6ff",danger:"#ff9a3c",mystery:"#b783ff"};
 const defaultMinimapData=()=>({image:"",pins:[]});
-const defData=()=>({background:"",bgPosX:50,bgPosY:50,bgZoom:100,bgStretch:false,featuredArt:"",featuredCaption:"",narration:"",style:"classic",actors:[],backgrounds:[],npcs:[],boardActors:[],boardActorsVisible:true,props:[],propsByBackground:{},questPins:[],questPinsByBackground:{},enemies:[],encounters:[],combatActive:false,shared:false,preEncounterView:null,gmPin:{visible:false,image:"",size:64,posX:50,posY:50},minimap:defaultMinimapData()});
+const defData=()=>({background:"",bgPosX:50,bgPosY:50,bgZoom:100,bgStretch:false,featuredArt:"",featuredCaption:"",narration:"",style:"classic",mediaJournal:"",actors:[],backgrounds:[],npcs:[],boardActors:[],boardActorsVisible:true,props:[],propsByBackground:{},questPins:[],questPinsByBackground:{},enemies:[],encounters:[],combatActive:false,shared:false,preEncounterView:null,gmPin:{visible:false,image:"",size:64,posX:50,posY:50},minimap:defaultMinimapData()});
+const MEDIA_ROLE_META={
+  unsorted:{label:"Unsorted",icon:"fas fa-inbox"},
+  background:{label:"Backgrounds",icon:"fas fa-images"},
+  npc:{label:"NPCs",icon:"fas fa-user-tag"},
+  prop:{label:"Props",icon:"fas fa-cube"},
+  featured:{label:"Featured",icon:"fas fa-star"}
+};
 const SCENE_DATA_CACHE=new Map();
 const SCENE_DATA_EPOCH=new Map();
 const cloneData=data=>JSON.parse(JSON.stringify(data??{}));
@@ -51,7 +58,7 @@ function preserveFreshStageState(scene,incoming){
   const currentEpoch=SCENE_DATA_EPOCH.get(scene.id)||0;
   if(incomingEpoch==null||incomingEpoch>=currentEpoch)return incoming;
   const current=normalizeSceneData(getF(scene,FLAG_DATA)||{});
-  ["actors","shared","featuredArt","featuredCaption","npcs","props","propsByBackground","questPins","questPinsByBackground","boardActors","boardActorsVisible","enemies","combatActive","preEncounterView","gmPin","minimap"].forEach(key=>{
+  ["actors","shared","featuredArt","featuredCaption","npcs","props","propsByBackground","questPins","questPinsByBackground","boardActors","boardActorsVisible","enemies","combatActive","preEncounterView","gmPin","minimap","mediaJournal"].forEach(key=>{
     incoming[key]=cloneData(current[key]);
   });
   return incoming;
@@ -61,7 +68,7 @@ const getData=s=>{
   const cached=s.id?SCENE_DATA_CACHE.get(s.id):null;
   return attachSceneDataEpoch(s,normalizeSceneData(getF(s,FLAG_DATA)??cached??{}));
 };
-const STAGE_ONLY_DATA_KEYS=new Set(["background","bgPosX","bgPosY","bgZoom","bgStretch","bgFadeAt","featuredArt","featuredCaption","narration","npcs","props","propsByBackground","questPins","questPinsByBackground","boardActors","boardActorsVisible","gmPin","backgrounds"]);
+const STAGE_ONLY_DATA_KEYS=new Set(["background","bgPosX","bgPosY","bgZoom","bgStretch","bgFadeAt","featuredArt","featuredCaption","narration","npcs","props","propsByBackground","questPins","questPinsByBackground","boardActors","boardActorsVisible","gmPin","backgrounds","mediaJournal"]);
 const ACTOR_STAGE_ONLY_KEYS=new Set(["pinVisible","pinImg","pinSize","pinX","pinY"]);
 function stripActorStageOnlyFields(actor){
   const next=cloneData(actor||{});
@@ -695,6 +702,10 @@ function safeDecodeURIComponent(value){
 }
 function titleCaseGeneratedName(value){
   return String(value||"").replace(/\b([a-z])/g,match=>match.toUpperCase());
+}
+function isImagePath(value){
+  const text=String(value||"").trim();
+  return !!text&&/\.(apng|avif|bmp|gif|jpe?g|png|svg|webp)$/i.test(text.split("?")[0]);
 }
 function cleanBackgroundNameFromPath(path){
   let base=String(path||"").split("/").pop()||"Background";
@@ -1342,7 +1353,7 @@ function deactivate(){document.body.classList.remove("totm-active");const el=doc
 function hasUsefulTotmData(d){
   const propCount=Object.values(d.propsByBackground||{}).reduce((n,b)=>n+(Array.isArray(b)?b.length:0),Array.isArray(d.props)?d.props.length:0);
   const questCount=Object.values(d.questPinsByBackground||{}).reduce((n,b)=>n+(Array.isArray(b)?b.length:0),Array.isArray(d.questPins)?d.questPins.length:0);
-  return !!(d.background||d.featuredArt||d.narration||(d.actors||[]).length||(d.backgrounds||[]).length||(d.npcs||[]).length||(d.boardActors||[]).length||(d.enemies||[]).length||(d.encounters||[]).length||propCount||questCount);
+  return !!(d.background||d.featuredArt||d.narration||d.mediaJournal||(d.actors||[]).length||(d.backgrounds||[]).length||(d.npcs||[]).length||(d.boardActors||[]).length||(d.enemies||[]).length||(d.encounters||[]).length||propCount||questCount);
 }
 function renderGmOnboarding(){
   return `<div class="totm-onboarding" id="totm-onboarding"><div class="totm-onboarding-panel">
@@ -1859,7 +1870,7 @@ function refreshMinimapDockOnly(scene=game.scenes.viewed,d=getData(scene)){
   return true;
 }
 
-function renderTopbar(d,scene){return renderTopbarModule({d,scene,deps:{hasClockModule,getClockEntries,moduleVersion:game.modules.get(MODULE_ID)?.version||"",isGM,playerTopbarItems:["tb-clocks","tb-minimap"]}});}
+function renderTopbar(d,scene){return renderTopbarModule({d,scene,deps:{hasClockModule,getClockEntries,moduleVersion:game.modules.get(MODULE_ID)?.version||"",isGM,playerTopbarItems:["tb-clocks","tb-minimap"],getMediaJournalCount}});}
 
 function backupFileSlug(value){
   return String(value||"scene").trim().toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-+|-+$/g,"").slice(0,60)||"scene";
@@ -1974,6 +1985,605 @@ function openSceneBackupDialog(scene,d=getData(scene)){
   }).render(true);
 }
 
+function getWorldJournals(){
+  return game.journal?.contents||[];
+}
+
+function getMediaJournal(ref){
+  const key=String(ref||"").trim();
+  if(!key)return null;
+  return game.journal?.get?.(key)||getWorldJournals().find(j=>j.uuid===key||j.id===key)||null;
+}
+
+function getJournalPages(journal){
+  if(!journal)return [];
+  if(Array.isArray(journal.pages?.contents))return journal.pages.contents;
+  if(journal.pages?.contents)return Array.from(journal.pages.contents);
+  if(journal.pages)return Array.from(journal.pages);
+  return [];
+}
+
+function normalizeMediaRole(role){
+  const value=String(role||"unsorted").trim().toLowerCase();
+  return MEDIA_ROLE_META[value]?value:"unsorted";
+}
+
+function getMediaPageImage(page){
+  const image=String(page?.src||page?.image?.src||page?.img||page?.texture?.src||page?.system?.src||page?.getFlag?.(MODULE_ID,"mediaImage")||"").trim();
+  return isImagePath(image)?image:"";
+}
+
+function getMediaPageRole(page){
+  return normalizeMediaRole(page?.getFlag?.(MODULE_ID,"mediaRole"));
+}
+
+function getMediaEntries(journal){
+  return getJournalPages(journal).map(page=>{
+    const image=getMediaPageImage(page);
+    if(!image)return null;
+    const name=String(page.name||page.getFlag?.(MODULE_ID,"mediaName")||cleanBackgroundNameFromPath(image)).trim()||cleanBackgroundNameFromPath(image);
+    const role=getMediaPageRole(page);
+    return {page,id:page.id,name,image,role,searchText:[name,image,role,journal?.name].filter(Boolean).join(" ").toLowerCase()};
+  }).filter(Boolean);
+}
+
+function getMediaJournalCount(d){
+  return getMediaEntries(getMediaJournal(d?.mediaJournal)).length;
+}
+
+function mediaDropFromPath(path,name=""){
+  path=String(path||"").trim();
+  if(!isImagePath(path))return null;
+  return {image:path,name:String(name||cleanBackgroundNameFromPath(path)).trim()||cleanBackgroundNameFromPath(path)};
+}
+
+function mediaDropFromObject(data){
+  if(!data||typeof data!=="object")return null;
+  const image=String(data.img||data.image||data.src||data.path||data.file||data.texture?.src||data.system?.src||"").trim();
+  if(!isImagePath(image))return null;
+  return mediaDropFromPath(image,String(data.name||data.label||""));
+}
+
+async function resolveMediaDropFromDocument(data){
+  if(!data?.uuid)return null;
+  let doc=null;
+  try{doc=await fromUuid(data.uuid);}catch{doc=null;}
+  if(!doc)return null;
+  const pageImage=getMediaPageImage(doc);
+  if(pageImage)return mediaDropFromPath(pageImage,doc.name||data.name||data.label||"");
+  return mediaDropFromObject({
+    name:doc.name||data.name||data.label,
+    img:doc.img,
+    image:doc.image?.src,
+    src:doc.src,
+    texture:doc.texture,
+    system:doc.system
+  });
+}
+
+async function mediaDropsFromValue(value){
+  if(!value)return [];
+  if(Array.isArray(value)){
+    const batches=await Promise.all(value.map(item=>mediaDropsFromValue(item)));
+    return batches.flat();
+  }
+  if(typeof value==="object"){
+    const fromObject=mediaDropFromObject(value);
+    if(fromObject)return [fromObject];
+    const fromDoc=await resolveMediaDropFromDocument(value);
+    return fromDoc?[fromDoc]:[];
+  }
+  const text=String(value||"").trim();
+  if(!text)return [];
+  try{
+    const parsed=JSON.parse(text);
+    return await mediaDropsFromValue(parsed);
+  }catch{}
+  const lines=text.split(/\r?\n/).map(line=>line.trim()).filter(line=>line&&!line.startsWith("#"));
+  const drops=[];
+  for(const line of lines){
+    let parsed=null;
+    try{parsed=JSON.parse(line);}catch{parsed=null;}
+    if(parsed)drops.push(...await mediaDropsFromValue(parsed));
+    else{
+      const direct=mediaDropFromPath(line);
+      if(direct)drops.push(direct);
+    }
+  }
+  return drops;
+}
+
+function uniqueMediaDrops(drops){
+  const seen=new Set();
+  return (drops||[]).filter(drop=>{
+    const key=String(drop?.image||"").trim();
+    if(!key||seen.has(key))return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+async function extractMediaDropsFromTransfer(transfer){
+  if(!transfer)return [];
+  const drops=[];
+  const rawPlain=String(transfer.getData?.("text/plain")||"").trim();
+  if(rawPlain)drops.push(...await mediaDropsFromValue(rawPlain));
+  const uriList=String(transfer.getData?.("text/uri-list")||"").trim();
+  if(uriList)drops.push(...await mediaDropsFromValue(uriList));
+  const downloadUrl=String(transfer.getData?.("DownloadURL")||"").trim();
+  if(downloadUrl){
+    const parts=downloadUrl.split(":");
+    drops.push(...await mediaDropsFromValue(parts.slice(2).join(":")));
+  }
+  Array.from(transfer.files||[]).forEach(file=>{
+    const image=String(file?.path||file?.name||"").trim();
+    const drop=mediaDropFromPath(image,file?.name||"");
+    if(drop)drops.push(drop);
+  });
+  return uniqueMediaDrops(drops);
+}
+
+function mediaPageData(drop,role="unsorted"){
+  const image=String(drop?.image||"").trim();
+  const name=String(drop?.name||cleanBackgroundNameFromPath(image)).trim()||cleanBackgroundNameFromPath(image);
+  return {
+    name,
+    type:"image",
+    src:image,
+    image:{caption:""},
+    flags:{[MODULE_ID]:{mediaRole:normalizeMediaRole(role),mediaImage:image,mediaName:name,mediaCreatedAt:Date.now()}}
+  };
+}
+
+async function createMediaJournal(scene,d,{forceNew=false}={}){
+  if(!isGM())return null;
+  if(!forceNew){
+    const existing=getMediaJournal(d?.mediaJournal);
+    if(existing)return existing;
+  }
+  const journal=await JournalEntry.create({
+    name:`${scene?.name||"TOTM"} Media`,
+    flags:{[MODULE_ID]:{mediaJournal:true,sceneId:scene?.id||"",sceneUuid:scene?.uuid||""}}
+  });
+  const live=getData(scene);
+  live.mediaJournal=journal.id;
+  await saveData(scene,live);
+  emit();
+  refreshTopbarOnly(scene,live);
+  ui.notifications.info(`Linked ${journal.name} as the TOTM media journal.`);
+  return journal;
+}
+
+async function setLinkedMediaJournal(scene,journalId){
+  const live=getData(scene);
+  live.mediaJournal=String(journalId||"");
+  await saveData(scene,live);
+  emit();
+  refreshTopbarOnly(scene,live);
+  return getMediaJournal(live.mediaJournal);
+}
+
+async function setMediaPageRole(page,role){
+  if(!page)return;
+  const next=normalizeMediaRole(role);
+  if(page.getFlag?.(MODULE_ID,"mediaRole")===next)return;
+  await page.setFlag(MODULE_ID,"mediaRole",next);
+}
+
+async function createMediaPagesFromDrops(journal,drops,role="unsorted"){
+  if(!journal)return {created:0,updated:0};
+  const entries=getMediaEntries(journal);
+  const byImage=new Map(entries.map(entry=>[entry.image,entry]));
+  const createData=[];
+  let updated=0;
+  for(const drop of uniqueMediaDrops(drops)){
+    const existing=byImage.get(drop.image);
+    if(existing){
+      if(role!=="unsorted"&&existing.role!==role){
+        await setMediaPageRole(existing.page,role);
+        updated++;
+      }
+      continue;
+    }
+    createData.push(mediaPageData(drop,role));
+  }
+  if(createData.length)await journal.createEmbeddedDocuments("JournalEntryPage",createData);
+  return {created:createData.length,updated};
+}
+
+function commitMediaSceneProp(targetData,prop){
+  if(!targetData||!prop)return [];
+  const key=String(prop.backgroundKey||targetData.background||"");
+  const saved=foundry.utils.deepClone({...prop,backgroundKey:key});
+  if(!targetData.propsByBackground||typeof targetData.propsByBackground!=="object"||Array.isArray(targetData.propsByBackground))targetData.propsByBackground={};
+  const bucket=Array.isArray(targetData.propsByBackground[key])?targetData.propsByBackground[key]:[];
+  const idx=bucket.findIndex(item=>item?.id===saved.id);
+  if(idx>=0)bucket[idx]=saved;
+  else bucket.push(saved);
+  targetData.propsByBackground[key]=bucket;
+  if(String(targetData.background||"")===key)targetData.props=bucket.map(item=>foundry.utils.deepClone(item));
+  return bucket;
+}
+
+async function addMediaBackgroundToScene(scene,entry,{useNow=false,category=""}={}){
+  if(!entry?.image)return;
+  const live=getData(scene);
+  const backgrounds=normalizeBackgrounds(live);
+  const bgCategory=String(category||"Journal").trim()||"Journal";
+  let bg=backgrounds.find(item=>String(item.image)===String(entry.image));
+  if(!bg){
+    bg=makeBgFromPath(entry.image,{name:entry.name,category:bgCategory});
+    backgrounds.push(bg);
+  }else{
+    bg.category=bgCategory;
+  }
+  live.backgrounds=backgrounds;
+  if(useNow)setSceneBg(live,bg);
+  await saveData(scene,live);
+  if(useNow){emitStage();refreshChangedAreas(scene,live);}
+  else{emit();refreshTopbarOnly(scene,live);}
+  ui.notifications.info(useNow?`Using ${entry.name} as the background.`:`Added ${entry.name} to the background library.`);
+}
+
+async function addMediaNpcToScene(scene,entry,{place=false}={}){
+  if(!entry?.image)return;
+  const live=getData(scene);
+  if(!Array.isArray(live.npcs))live.npcs=[];
+  let npc=live.npcs.find(item=>String(item.image)===String(entry.image));
+  if(!npc){
+    npc={name:entry.name||cleanBackgroundNameFromPath(entry.image),image:entry.image,posX:50,posY:50,scale:100,visible:false,category:"Journal",tags:""};
+    live.npcs.push(npc);
+  }
+  const saveNpc=async(refresh=true)=>{
+    await saveData(scene,live);
+    emit();
+    if(refresh)refreshChangedAreas(scene,live);
+  };
+  if(place&&openDragPos){
+    ui.notifications.info(`Position ${npc.name}. Players will see it after you click Done.`);
+    openDragPos(npc,scene,live,async()=>{
+      npc.visible=true;
+      await saveNpc(true);
+    },async()=>{
+      if(!npc.visible){
+        const idx=live.npcs.indexOf(npc);
+        if(idx>=0)live.npcs.splice(idx,1);
+        await saveNpc(true);
+      }
+      ui.notifications.info(`Cancelled ${npc.name} placement.`);
+    });
+    return;
+  }
+  await saveNpc(false);
+  ui.notifications.info(`Added ${npc.name} to the NPC roster.`);
+}
+
+async function addMediaPropToScene(scene,entry){
+  if(!entry?.image)return;
+  const live=getData(scene);
+  const prop={id:foundry.utils.randomID(),kind:"prop",name:entry.name||cleanBackgroundNameFromPath(entry.image),image:entry.image,backgroundKey:String(live.background||""),posX:50,posY:50,scale:100};
+  const commit=async()=>{
+    const latest=getData(scene);
+    commitMediaSceneProp(latest,prop);
+    await saveData(scene,latest);
+    emit();
+    refreshChangedAreas(scene,latest);
+  };
+  if(openDragPos){
+    ui.notifications.info(`Position ${prop.name}. Players will see it after you click Done.`);
+    openDragPos(prop,scene,live,commit,()=>ui.notifications.info(`Cancelled ${prop.name} placement.`));
+    return;
+  }
+  await commit();
+}
+
+async function setMediaFeaturedArt(scene,entry){
+  if(!entry?.image)return;
+  const live=getData(scene);
+  live.featuredArt=entry.image;
+  live.featuredCaption=entry.name||cleanBackgroundNameFromPath(entry.image);
+  await saveData(scene,live);
+  emit();
+  refreshChangedAreas(scene,live);
+  ui.notifications.info(`Featured ${live.featuredCaption}.`);
+}
+
+function getBackgroundCategories(d){
+  return Array.from(new Set(normalizeBackgrounds(d).map(bg=>String(bg.category||"Uncategorized").trim()||"Uncategorized"))).sort((a,b)=>a.localeCompare(b));
+}
+
+function mediaJournalCategoryName(journal){
+  return String(journal?.name||"Journal").replace(/\s+media$/i,"").trim()||"Journal";
+}
+
+function renderMediaImportCategoryOptions(d,journal,selected=""){
+  const journalCategory=mediaJournalCategoryName(journal);
+  const categories=[journalCategory,...getBackgroundCategories(d).filter(cat=>cat!==journalCategory)];
+  const active=String(selected||journalCategory).trim()||journalCategory;
+  return categories.map(cat=>`<option value="${attr(cat)}" ${cat===active?"selected":""}>${esc(cat)}</option>`).join("");
+}
+
+function renderMediaSyncSourceOptions(d,selected="current"){
+  const active=String(selected||"current");
+  const cats=getBackgroundCategories(d);
+  return [
+    `<option value="current" ${active==="current"?"selected":""}>${esc(loc("CurrentBackground","Current Background"))}</option>`,
+    `<option value="all" ${active==="all"?"selected":""}>${esc(loc("AllBackgrounds","All Backgrounds"))}</option>`,
+    ...cats.map(cat=>{
+      const value=`cat:${encodeURIComponent(cat)}`;
+      return `<option value="${attr(value)}" ${active===value?"selected":""}>${esc(cat)}</option>`;
+    })
+  ].join("");
+}
+
+function backgroundMatchesMediaSyncSource(bg,d,source="current"){
+  const value=String(source||"current");
+  if(value==="all")return true;
+  if(value.startsWith("cat:")){
+    const cat=safeDecodeURIComponent(value.slice(4));
+    return String(bg?.category||"Uncategorized").trim()===cat;
+  }
+  return String(bg?.image||"")===String(d.background||"");
+}
+
+function gatherSceneMediaItems(d,{backgroundSource="current"}={}){
+  const items=[];
+  const add=(image,name,role)=>{
+    image=String(image||"").trim();
+    if(!isImagePath(image))return;
+    items.push({image,name:String(name||cleanBackgroundNameFromPath(image)).trim()||cleanBackgroundNameFromPath(image),role:normalizeMediaRole(role)});
+  };
+  const backgrounds=normalizeBackgrounds(d).filter(bg=>backgroundMatchesMediaSyncSource(bg,d,backgroundSource));
+  backgrounds.forEach(bg=>add(bg.image,displayBackgroundName(bg),"background"));
+  if(backgroundSource==="current"&&d.background&&!backgrounds.some(bg=>String(bg.image)===String(d.background)))add(d.background,cleanBackgroundNameFromPath(d.background),"background");
+  (d.npcs||[]).forEach(npc=>add(npc.image,npc.name,"npc"));
+  if(d.featuredArt)add(d.featuredArt,d.featuredCaption||cleanBackgroundNameFromPath(d.featuredArt),"featured");
+  const propBuckets=[...(Array.isArray(d.props)?[d.props]:[]),...Object.values(d.propsByBackground||{}).filter(Array.isArray)];
+  propBuckets.flat().forEach(prop=>add(prop.image,prop.name,"prop"));
+  const seen=new Set();
+  return items.filter(item=>{
+    if(seen.has(item.image))return false;
+    seen.add(item.image);
+    return true;
+  });
+}
+
+async function syncSceneToMediaJournal(scene,d,journal,{backgroundSource="current"}={}){
+  journal=journal||await createMediaJournal(scene,d);
+  if(!journal)return;
+  const items=gatherSceneMediaItems(getData(scene),{backgroundSource});
+  const result=await createMediaPagesFromDrops(journal,items,"unsorted");
+  const entries=getMediaEntries(journal);
+  for(const item of items){
+    const entry=entries.find(e=>e.image===item.image);
+    if(entry&&entry.role==="unsorted"&&item.role!=="unsorted")await setMediaPageRole(entry.page,item.role);
+  }
+  ui.notifications.info(`Synced ${items.length} scene images to ${journal.name}.`);
+  return result;
+}
+
+async function importMediaJournalToScene(scene,journal,{category=""}={}){
+  if(!journal)return;
+  const live=getData(scene);
+  const entries=getMediaEntries(journal);
+  const backgrounds=normalizeBackgrounds(live);
+  if(!Array.isArray(live.npcs))live.npcs=[];
+  const bgCategory=String(category||mediaJournalCategoryName(journal)).trim()||mediaJournalCategoryName(journal);
+  let bgCount=0,bgUpdated=0,npcCount=0,featuredCount=0;
+  for(const entry of entries){
+    if(entry.role==="background"){
+      const existing=backgrounds.find(bg=>String(bg.image)===String(entry.image));
+      if(!existing){
+        backgrounds.push(makeBgFromPath(entry.image,{name:entry.name,category:bgCategory}));
+        bgCount++;
+      }else if(existing.category!==bgCategory){
+        existing.category=bgCategory;
+        bgUpdated++;
+      }
+    }else if(entry.role==="npc"){
+      if(!live.npcs.some(npc=>String(npc.image)===String(entry.image))){
+        live.npcs.push({name:entry.name,image:entry.image,posX:50,posY:50,scale:100,visible:false,category:"Journal",tags:""});
+        npcCount++;
+      }
+    }else if(entry.role==="featured"&&!live.featuredArt){
+      live.featuredArt=entry.image;
+      live.featuredCaption=entry.name;
+      featuredCount++;
+    }
+  }
+  live.backgrounds=backgrounds;
+  await saveData(scene,live);
+  emit();
+  refreshChangedAreas(scene,live);
+  ui.notifications.info(`Imported ${bgCount} backgrounds${bgUpdated?`, recategorized ${bgUpdated}`:""}, ${npcCount} NPCs, and ${featuredCount} featured image from ${journal.name}.`);
+}
+
+function renderJournalOptions(selectedId=""){
+  const selected=String(selectedId||"");
+  return [`<option value="">- ${esc(loc("ChooseJournal","Choose Journal"))} -</option>`,...getWorldJournals().map(j=>`<option value="${attr(j.id)}" ${j.id===selected?"selected":""}>${esc(j.name)}</option>`)].join("");
+}
+
+function openMediaJournalManager(scene,d=getData(scene)){
+  if(!scene||!isGM())return;
+  let selectedJournalId=String(d.mediaJournal||"");
+  let activeRole="all";
+  let searchTerm="";
+  let importCategory="";
+  let syncSource="current";
+  const roleTabs=["all",...Object.keys(MEDIA_ROLE_META)];
+  const initialJournal=getMediaJournal(selectedJournalId);
+  importCategory=mediaJournalCategoryName(initialJournal);
+  const content=`<div class="totm-media-journal">
+    <div class="totm-media-toolbar">
+      <label class="totm-media-journal-select"><i class="fas fa-book"></i><select name="mediaJournal">${renderJournalOptions(selectedJournalId)}</select></label>
+      <button type="button" data-media-toolbar="link"><i class="fas fa-link"></i> ${esc(loc("Link","Link"))}</button>
+      <button type="button" data-media-toolbar="new"><i class="fas fa-plus"></i> ${esc(loc("NewJournal","New Journal"))}</button>
+      <button type="button" data-media-toolbar="sync"><i class="fas fa-upload"></i> ${esc(loc("SyncScene","Sync Scene"))}</button>
+      <button type="button" data-media-toolbar="import"><i class="fas fa-download"></i> ${esc(loc("ImportAll","Import All"))}</button>
+    </div>
+    <div class="totm-media-subbar">
+      <label class="totm-media-search"><i class="fas fa-search"></i><input type="search" name="mediaSearch" placeholder="${attr(loc("SearchImages","Search images..."))}"/></label>
+      <label class="totm-media-drop-role"><span>${esc(loc("DropAs","Drop as"))}</span><select name="dropRole">${Object.entries(MEDIA_ROLE_META).map(([role,meta])=>`<option value="${attr(role)}">${esc(meta.label)}</option>`).join("")}</select></label>
+      <label class="totm-media-sync-source"><span>${esc(loc("SyncFrom","Sync from"))}</span><select name="syncSource">${renderMediaSyncSourceOptions(d,syncSource)}</select></label>
+      <label class="totm-media-import-category"><span>${esc(loc("ImportCategory","Import category"))}</span><select name="importCategory">${renderMediaImportCategoryOptions(d,initialJournal,importCategory)}</select></label>
+    </div>
+    <div class="totm-media-tabs">${roleTabs.map((role,idx)=>`<button type="button" class="${idx===0?"is-active":""}" data-media-tab="${attr(role)}">${role==="all"?esc(loc("All","All")):`<i class="${attr(MEDIA_ROLE_META[role].icon)}"></i> ${esc(MEDIA_ROLE_META[role].label)}`}</button>`).join("")}</div>
+    <div class="totm-media-drop" data-media-drop><i class="fas fa-cloud-arrow-up"></i><span>${esc(loc("DropImagesIntoJournal","Drop images here"))}</span></div>
+    <div class="totm-media-grid" data-media-grid></div>
+  </div>`;
+  const dlg=makeDialogPopoutCompatible(new Dialog({
+    title:loc("MediaJournal","Media Journal"),
+    content,
+    buttons:{close:{icon:'<i class="fas fa-times"></i>',label:"Close"}},
+    default:"close",
+    resizable:true,
+    render:html=>{
+      const root=html[0],app=root.closest(".app");
+      if(app){
+        app.classList.add("totm-media-journal-dialog","totm-picker-dialog");
+        applyDialogSize(app,"mediaJournalSize",{width:1040,height:760,minWidth:720,minHeight:520});
+      }
+      const journalSelect=root.querySelector("[name=mediaJournal]");
+      const search=root.querySelector("[name=mediaSearch]");
+      const dropRole=root.querySelector("[name=dropRole]");
+      const syncSourceSelect=root.querySelector("[name=syncSource]");
+      const importCategorySelect=root.querySelector("[name=importCategory]");
+      const grid=root.querySelector("[data-media-grid]");
+      const dropZone=root.querySelector("[data-media-drop]");
+      const getJournal=()=>getMediaJournal(selectedJournalId);
+      const refreshJournalSelect=()=>{journalSelect.innerHTML=renderJournalOptions(selectedJournalId);};
+      const refreshCategoryControls=()=>{
+        const journal=getJournal();
+        const latest=getData(scene);
+        syncSourceSelect.innerHTML=renderMediaSyncSourceOptions(latest,syncSource);
+        importCategorySelect.innerHTML=renderMediaImportCategoryOptions(latest,journal,importCategory||mediaJournalCategoryName(journal));
+      };
+      const selectedImportCategory=()=>String(importCategorySelect.value||mediaJournalCategoryName(getJournal())).trim()||mediaJournalCategoryName(getJournal());
+      const getShownEntries=()=>{
+        const entries=getMediaEntries(getJournal());
+        return entries.filter(entry=>{
+          if(activeRole!=="all"&&entry.role!==activeRole)return false;
+          if(!searchTerm)return true;
+          return entry.searchText.includes(searchTerm);
+        });
+      };
+      const render=()=>{
+        const journal=getJournal();
+        root.classList.toggle("has-journal",!!journal);
+        root.querySelectorAll("[data-media-tab]").forEach(btn=>btn.classList.toggle("is-active",(btn.dataset.mediaTab||"all")===activeRole));
+        if(!journal){
+          grid.innerHTML=`<div class="totm-media-empty">${esc(loc("NoMediaJournalLinked","Link or create a journal to begin."))}</div>`;
+          return;
+        }
+        const entries=getShownEntries();
+        grid.innerHTML=entries.length?entries.map(entry=>{
+          const roleMeta=MEDIA_ROLE_META[entry.role]||MEDIA_ROLE_META.unsorted;
+          return `<article class="totm-media-card" data-page-id="${attr(entry.id)}">
+            <button type="button" class="totm-media-thumb" data-media-act="${entry.role==="background"?"use-bg":"feature"}" style="${attr(`background-image:${cssUrl(entry.image)}`)}"></button>
+            <div class="totm-media-card-body">
+              <div class="totm-media-title" title="${attr(entry.name)}">${esc(entry.name)}</div>
+              <div class="totm-media-role"><i class="${attr(roleMeta.icon)}"></i> ${esc(roleMeta.label)}</div>
+            </div>
+            <div class="totm-media-role-row">
+              ${Object.entries(MEDIA_ROLE_META).map(([role,meta])=>`<button type="button" class="${entry.role===role?"is-active":""}" data-media-role="${attr(role)}" title="${attr(meta.label)}"><i class="${attr(meta.icon)}"></i></button>`).join("")}
+            </div>
+            <div class="totm-media-actions">
+              <button type="button" data-media-act="use-bg" title="${attr(loc("UseBG","Use BG"))}"><i class="fas fa-play"></i><span>${esc(loc("UseBG","Use BG"))}</span></button>
+              <button type="button" data-media-act="add-bg" title="${attr(loc("AddBG","Add BG"))}"><i class="fas fa-images"></i><span>${esc(loc("AddBG","Add BG"))}</span></button>
+              <button type="button" data-media-act="place-npc" title="${attr(loc("PlaceNPC","Place NPC"))}"><i class="fas fa-user-tag"></i><span>${esc(loc("PlaceNPC","Place NPC"))}</span></button>
+              <button type="button" data-media-act="place-prop" title="${attr(loc("PlaceProp","Place Prop"))}"><i class="fas fa-cube"></i><span>${esc(loc("PlaceProp","Place Prop"))}</span></button>
+              <button type="button" data-media-act="feature" title="${attr(loc("Feature","Feature"))}"><i class="fas fa-star"></i><span>${esc(loc("Feature","Feature"))}</span></button>
+            </div>
+          </article>`;
+        }).join(""):`<div class="totm-media-empty">${esc(loc("NoJournalImages","No journal images match."))}</div>`;
+      };
+      const getEntryFromEvent=event=>{
+        const card=event.target.closest("[data-page-id]");
+        if(!card)return null;
+        return getMediaEntries(getJournal()).find(entry=>entry.id===card.dataset.pageId)||null;
+      };
+      root.querySelector("[data-media-toolbar='link']")?.addEventListener("click",async()=>{
+        selectedJournalId=String(journalSelect.value||"");
+        await setLinkedMediaJournal(scene,selectedJournalId);
+        importCategory=mediaJournalCategoryName(getJournal());
+        refreshCategoryControls();
+        render();
+      });
+      root.querySelector("[data-media-toolbar='new']")?.addEventListener("click",async()=>{
+        const journal=await createMediaJournal(scene,getData(scene),{forceNew:true});
+        selectedJournalId=journal?.id||"";
+        importCategory=mediaJournalCategoryName(journal);
+        refreshJournalSelect();
+        refreshCategoryControls();
+        render();
+      });
+      root.querySelector("[data-media-toolbar='sync']")?.addEventListener("click",async()=>{
+        const journal=getJournal()||await createMediaJournal(scene,getData(scene));
+        selectedJournalId=journal?.id||selectedJournalId;
+        refreshJournalSelect();
+        await syncSceneToMediaJournal(scene,getData(scene),journal,{backgroundSource:syncSourceSelect.value||syncSource});
+        render();
+      });
+      root.querySelector("[data-media-toolbar='import']")?.addEventListener("click",async()=>{
+        const journal=getJournal();
+        if(!journal){ui.notifications.warn("Link a journal first.");return;}
+        await importMediaJournalToScene(scene,journal,{category:selectedImportCategory()});
+        refreshCategoryControls();
+        render();
+      });
+      journalSelect.addEventListener("change",()=>{
+        selectedJournalId=String(journalSelect.value||"");
+        importCategory=mediaJournalCategoryName(getJournal());
+        refreshCategoryControls();
+        render();
+      });
+      syncSourceSelect.addEventListener("change",()=>{syncSource=String(syncSourceSelect.value||"current");});
+      importCategorySelect.addEventListener("change",()=>{importCategory=String(importCategorySelect.value||"");});
+      search.addEventListener("input",()=>{searchTerm=String(search.value||"").trim().toLowerCase();render();});
+      root.querySelectorAll("[data-media-tab]").forEach(btn=>btn.addEventListener("click",()=>{
+        activeRole=btn.dataset.mediaTab||"all";
+        render();
+      }));
+      dropZone.addEventListener("dragover",event=>{event.preventDefault();dropZone.classList.add("is-drag-over");});
+      dropZone.addEventListener("dragleave",()=>dropZone.classList.remove("is-drag-over"));
+      dropZone.addEventListener("drop",async event=>{
+        event.preventDefault();
+        dropZone.classList.remove("is-drag-over");
+        const drops=await extractMediaDropsFromTransfer(event.dataTransfer);
+        if(!drops.length){ui.notifications.warn("No image paths found in that drop.");return;}
+        const journal=getJournal()||await createMediaJournal(scene,getData(scene));
+        selectedJournalId=journal?.id||selectedJournalId;
+        refreshJournalSelect();
+        const role=normalizeMediaRole(dropRole.value||activeRole);
+        const result=await createMediaPagesFromDrops(journal,drops,role);
+        ui.notifications.info(`Added ${result.created} image pages${result.updated?` and updated ${result.updated}`:""} in ${journal.name}.`);
+        refreshTopbarOnly(scene,getData(scene));
+        render();
+      });
+      grid.addEventListener("click",async event=>{
+        const roleBtn=event.target.closest("[data-media-role]");
+        const entry=getEntryFromEvent(event);
+        if(!entry)return;
+        if(roleBtn){
+          await setMediaPageRole(entry.page,roleBtn.dataset.mediaRole);
+          render();
+          refreshTopbarOnly(scene,getData(scene));
+          return;
+        }
+        const act=event.target.closest("[data-media-act]")?.dataset.mediaAct;
+        if(act==="use-bg")await addMediaBackgroundToScene(scene,entry,{useNow:true,category:selectedImportCategory()});
+        else if(act==="add-bg")await addMediaBackgroundToScene(scene,entry,{useNow:false,category:selectedImportCategory()});
+        else if(act==="place-npc")await addMediaNpcToScene(scene,entry,{place:true});
+        else if(act==="place-prop")await addMediaPropToScene(scene,entry);
+        else if(act==="feature")await setMediaFeaturedArt(scene,entry);
+      });
+      render();
+    },
+    close:()=>{const app=document.querySelector(".totm-media-journal-dialog");if(app)void saveDialogSize("mediaJournalSize",app);}
+  }));
+  dlg.render(true);
+}
+
 function syncTotmRootState(scene,d=getData(scene)){
   const el=document.getElementById("totm-ui");
   if(!el)return null;
@@ -2007,7 +2617,7 @@ function refreshPlayerPanelOnly(scene=game.scenes.viewed,d=getData(scene)){
 }
 
 function bindSceneAdminToolbar(el,scene,d){
-  bindSceneAdminEventsModule({el,scene,d,deps:{openMasterLibraryPicker,openBgPicker,openNpcPicker,openEncPicker,CLOCKS_OPEN_ref:()=>CLOCKS_OPEN,setCLOCKS_OPEN:v=>{CLOCKS_OPEN=v;},getData,refreshUI:refreshChangedAreas,scheduleRefresh,refreshClockUi,openBgCfg,clearCurrentBackgroundProps,addQuestPin,toggleGmPin,openGmPinCfg,clearEncounterState,saveData,emit,toggleBoardActorsVisibility,openBoardActorMgr,setCombatActive,openSceneBackupDialog,openGmHelpDialog,toggleMinimap,openMinimapControls,isGM}});
+  bindSceneAdminEventsModule({el,scene,d,deps:{openMasterLibraryPicker,openMediaJournalManager,openBgPicker,openNpcPicker,openEncPicker,CLOCKS_OPEN_ref:()=>CLOCKS_OPEN,setCLOCKS_OPEN:v=>{CLOCKS_OPEN=v;},getData,refreshUI:refreshChangedAreas,scheduleRefresh,refreshClockUi,openBgCfg,clearCurrentBackgroundProps,addQuestPin,toggleGmPin,openGmPinCfg,clearEncounterState,saveData,emit,toggleBoardActorsVisibility,openBoardActorMgr,setCombatActive,openSceneBackupDialog,openGmHelpDialog,toggleMinimap,openMinimapControls,isGM}});
 }
 
 function refreshTopbarOnly(scene=game.scenes.viewed,d=getData(scene)){
